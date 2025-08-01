@@ -129,6 +129,12 @@ You can assign roles for different access levels:
 
 ## Troubleshooting
 
+### CSS Not Loading (404 Error)
+1. **Check file paths** - Ensure `/assets/css/main.css` exists in your repository
+2. **Verify deployment** - Check that all files uploaded to Netlify correctly
+3. **Clear browser cache** - Hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows)
+4. **Check _redirects file** - Ensure `/assets/*` paths are allowed
+
 ### Users Can't Access the Site
 1. **Check Netlify Identity** is enabled
 2. **Verify user has been invited** and confirmed their account

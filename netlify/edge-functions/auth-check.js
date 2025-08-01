@@ -5,7 +5,8 @@ export default async (request, context) => {
   const allowedPaths = [
     '/auth/',
     '/assets/',
-    '/favicon.ico'
+    '/favicon.ico',
+    '/_netlify/'
   ];
   
   const isAllowedPath = allowedPaths.some(path => url.pathname.startsWith(path));
