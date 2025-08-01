@@ -1,0 +1,35 @@
+[build]
+  publish = "public"
+
+[context.production]
+  command = "echo 'Static site - no build required'"
+
+# Netlify Identity configuration
+[identity]
+  # Enable registration by invitation only
+  open = false
+
+# Redirect all non-authenticated users to login
+[[redirects]]
+  from = "/*"
+  to = "/auth/login.html"
+  status = 302
+  conditions = {Role = ["!user"]}
+
+# Allow access to auth pages without authentication
+[[redirects]]
+  from = "/auth/*"
+  to = "/auth/:splat"
+  status = 200
+
+# Allow authenticated users to access the app
+[[redirects]]
+  from = "/*"
+  to = "/:splat"
+  status = 200
+  conditions = {Role = ["user"]}
+
+# Edge Functions for enhanced security
+[[edge_functions]]
+  function = "auth-check"
+  path = "/*"

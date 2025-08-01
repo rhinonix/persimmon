@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <style>
+        /* Auth-specific styles matching Linear aesthetic */
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            padding: 20px;
+        }
+        
+        .auth-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .auth-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .auth-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .auth-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .form-input {
+            padding: 12px 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--persimmon-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-tertiary);
+        }
+        
+        .auth-button {
+            background: var(--persimmon-primary);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+        
+        .auth-button:hover {
+            background: var(--persimmon-primary-hover);
+        }
+        
+        .auth-button:disabled {
+            background: var(--text-tertiary);
+            cursor: not-allowed;
+        }
+        
+        .auth-divider {
+            margin: 24px 0;
+            text-align: center;
+            position: relative;
+            color: var(--text-tertiary);
+            font-size: 12px;
+        }
+        
+        .auth-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border-light);
+            z-index: 1;
+        }
+        
+        .auth-divider span {
+            background: var(--bg-white);
+            padding: 0 12px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .auth-links {
+            text-align: center;
+            margin-top: 24px;
+        }
+        
+        .auth-link {
+            color: var(--persimmon-primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .auth-link:hover {
+            text-decoration: underline;
+        }
+        
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        
+        .loading-state {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            .auth-card {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <svg width="48" height="48" viewBox="0 0 50 50">
+                        <circle cx="25" cy="25" r="22" fill="none" stroke="#EC5800" stroke-width="2"/>
+                        <circle cx="25" cy="25" r="8" fill="#EC5800"/>
+                        <circle cx="25" cy="25" r="3" fill="white"/>
+                        <circle cx="35" cy="15" r="4" fill="#4F7942"/>
+                        <circle cx="35" cy="15" r="2" fill="#6B8E58"/>
+                    </svg>
+                </div>
+                <h1 class="auth-title">Welcome back</h1>
+                <p class="auth-subtitle">Sign in to Persimmon Intelligence</p>
+            </div>
+            
+            <div id="error-container"></div>
+            
+            <!-- Netlify Identity Widget will mount here -->
+            <div data-netlify-identity-menu></div>
+            
+            <div class="auth-divider">
+                <span>or continue with email</span>
+            </div>
+            
+            <form class="auth-form" id="auth-form">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        class="form-input" 
+                        placeholder="your@email.com"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input" 
+                        placeholder="••••••••"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" class="auth-button" id="submit-btn">
+                    Sign in
+                </button>
+            </form>
+            
+            <div class="auth-links">
+                <a href="/auth/forgot-password.html" class="auth-link">Forgot your password?</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Netlify Identity Widget -->
+    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    
+    <script>
+        // Initialize Netlify Identity
+        netlifyIdentity.init({
+            container: '[data-netlify-identity-menu]',
+            locale: 'en'
+        });
+
+        // Authentication state management
+        const AuthManager = {
+            init() {
+                this.setupEventListeners();
+                this.checkAuthState();
+            },
+
+            setupEventListeners() {
+                // Custom form submission
+                document.getElementById('auth-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleLogin();
+                });
+
+                // Netlify Identity events
+                netlifyIdentity.on('init', user => {
+                    if (user) {
+                        this.redirectToApp();
+                    }
+                });
+
+                netlifyIdentity.on('login', user => {
+                    this.redirectToApp();
+                });
+
+                netlifyIdentity.on('error', err => {
+                    this.showError(err.message);
+                });
+            },
+
+            async handleLogin() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const submitBtn = document.getElementById('submit-btn');
+
+                if (!email || !password) {
+                    this.showError('Please enter both email and password');
+                    return;
+                }
+
+                // Show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        Signing in...
+                    </div>
+                `;
+
+                try {
+                    // Use Netlify Identity for authentication
+                    const user = await netlifyIdentity.login(email, password);
+                    this.redirectToApp();
+                } catch (error) {
+                    this.showError(error.message || 'Login failed. Please check your credentials.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Sign in';
+                }
+            },
+
+            checkAuthState() {
+                const user = netlifyIdentity.currentUser();
+                if (user) {
+                    this.redirectToApp();
+                }
+            },
+
+            showError(message) {
+                const errorContainer = document.getElementById('error-container');
+                errorContainer.innerHTML = `
+                    <div class="error-message">
+                        ${message}
+                    </div>
+                `;
+                
+                // Auto-hide error after 5 seconds
+                setTimeout(() => {
+                    errorContainer.innerHTML = '';
+                }, 5000);
+            },
+
+            redirectToApp() {
+                // Clear any error messages
+                document.getElementById('error-container').innerHTML = '';
+                
+                // Redirect to the main app
+                window.location.href = '/';
+            }
+        };
+
+        // Initialize authentication when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            AuthManager.init();
+        });
+    </script>
+</body>
+</html>
