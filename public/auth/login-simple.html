@@ -175,8 +175,8 @@
         // Auth0 Configuration - Update these with your actual values
         // These are public client credentials, safe to expose in client-side code
         const AUTH0_CONFIG = {
-            domain: "dev-bqb1oc1bvin0hma7.eu.auth0.com",      // Replace with your Auth0 domain
-            clientId: "zXMv2QcGwi2Dyik2UvWfOMkQzXoto3im",           // Replace with your Auth0 client ID  
+            domain: "your-auth0-domain.auth0.com",      // Replace with your Auth0 domain
+            clientId: "your-auth0-client-id",           // Replace with your Auth0 client ID  
             audience: ""                                // Optional: your Auth0 API audience
         };
         
@@ -184,8 +184,8 @@
         async function initAuth0() {
             try {
                 // Check if configuration has been updated
-                if (AUTH0_CONFIG.domain === "dev-bqb1oc1bvin0hma7.eu.auth0.com" || 
-                    AUTH0_CONFIG.clientId === "zXMv2QcGwi2Dyik2UvWfOMkQzXoto3im") {
+                if (AUTH0_CONFIG.domain === "your-auth0-domain.auth0.com" || 
+                    AUTH0_CONFIG.clientId === "your-auth0-client-id") {
                     document.getElementById('config-notice').style.display = 'block';
                     document.getElementById('login-button').disabled = true;
                     return;

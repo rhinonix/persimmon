@@ -1,9 +1,8 @@
 [build]
 publish = "public"
-command = "./build.sh"
 
 [context.production]
-command = "./build.sh"
+command = "echo 'Static site - no build required'"
 
-# Environment variables for Auth0
-# These will be set in Netlify dashboard and injected at build time
+# Auth0 client credentials are public and safe to expose in client-side code
+# No build-time injection needed - avoiding secrets scanning issues

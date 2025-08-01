@@ -5,10 +5,12 @@
 You're absolutely right to be concerned about exposing credentials! Here's what's secure and what's not:
 
 ### ✅ What's Safe to Expose (Public)
+
 - **Auth0 Client ID**: This is designed to be public and can safely appear in client-side code
 - **Auth0 Domain**: This is also public information
 
-### ❌ What Must Stay Secret (Private) 
+### ❌ What Must Stay Secret (Private)
+
 - **Auth0 Client Secret**: Never expose this! (We don't use it in SPAs anyway)
 - **API Keys and Tokens**: Never in client-side code
 
@@ -25,6 +27,7 @@ I've updated your setup to use Netlify's environment variables, which inject val
 ### Setup Steps
 
 1. **Set Environment Variables in Netlify**:
+
    ```
    VITE_AUTH0_DOMAIN=your-actual-domain.auth0.com
    VITE_AUTH0_CLIENT_ID=your-actual-client-id
@@ -32,6 +35,7 @@ I've updated your setup to use Netlify's environment variables, which inject val
    ```
 
 2. **In Netlify Dashboard**:
+
    - Go to Site Settings > Environment Variables
    - Add the variables above with your actual Auth0 values
 
@@ -54,6 +58,7 @@ I've updated your setup to use Netlify's environment variables, which inject val
 ### Testing Locally
 
 For local development, create a `.env` file (add to `.gitignore`):
+
 ```
 VITE_AUTH0_DOMAIN=your-domain.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id
