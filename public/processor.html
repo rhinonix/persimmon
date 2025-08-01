@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Processor - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <style>
+        /* Processor-specific styles */
+        .processor-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 20px;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .processor-sidebar {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 0;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+            margin: 0;
+            padding: 8px 0;
+        }
+        
+        .nav-item {
+            margin: 0;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .nav-link.active {
+            background: #f0f9ff;
+            color: var(--accent-blue);
+            border-right: 2px solid var(--accent-blue);
+        }
+        
+        .nav-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+        
+        .nav-link.active .nav-icon {
+            opacity: 1;
+        }
+        
+        .processor-main {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 24px;
+            min-height: 600px;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--border-medium);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--persimmon-orange);
+            background: #fef6e7;
+        }
+        
+        .upload-icon {
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .upload-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .upload-subtext {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .file-list {
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background: var(--bg-white);
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        .file-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .processing-queue {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .queue-item.processing {
+            background: #fef6e7;
+            border-color: var(--persimmon-orange);
+        }
+        
+        .queue-item.completed {
+            background: #f0fdf4;
+            border-color: var(--success-green);
+        }
+        
+        .queue-item.error {
+            background: #fef2f2;
+            border-color: var(--error-red);
+        }
+        
+        .item-content {
+            flex: 1;
+        }
+        
+        .item-title {
+            font-weight: 500;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        
+        .item-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .item-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .status-pending .status-dot { background: var(--text-tertiary); }
+        .status-processing .status-dot { 
+            background: var(--persimmon-orange); 
+            animation: pulse 1.5s infinite; 
+        }
+        .status-completed .status-dot { background: var(--success-green); }
+        .status-error .status-dot { background: var(--error-red); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .review-section {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        .review-item {
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .review-item:hover {
+            border-color: var(--border-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .review-item.approved {
+            border-color: var(--success-green);
+            background: #f0fdf4;
+        }
+        
+        .review-item.rejected {
+            border-color: var(--error-red);
+            background: #fef2f2;
+        }
+        
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .review-title {
+            font-weight: 500;
+            font-size: 14px;
+            line-height: 1.4;
+            flex: 1;
+            margin-right: 16px;
+        }
+        
+        .ai-confidence {
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--border-light);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .review-summary {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+        
+        .review-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-bottom: 12px;
+        }
+        
+        .review-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            padding: 4px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            background: var(--bg-white);
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .action-btn.approve {
+            background: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+        }
+        
+        .action-btn.approve:hover {
+            background: #059669;
+        }
+        
+        .action-btn.reject {
+            background: var(--error-red);
+            color: white;
+            border-color: var(--error-red);
+        }
+        
+        .action-btn.reject:hover {
+            background: #dc2626;
+        }
+        
+        .review-sidebar {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 120px;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .sidebar-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+        }
+        
+        .stat-value {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .sources-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .source-card {
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 16px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .source-card:hover {
+            border-color: var(--border-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .source-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .source-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #f0fdf4;
+            color: #166534;
+        }
+        
+        .status-inactive {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        
+        .source-description {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        .source-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-tertiary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <div class="processor-layout">
+            <!-- Sidebar Navigation -->
+            <div class="processor-sidebar">
+                <nav class="sidebar-nav">
+                    <div class="nav-item">
+                        <button class="nav-link active" onclick="PersimmonProcessor.showPage('import')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                            </svg>
+                            Import Data
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" onclick="PersimmonProcessor.showPage('processing')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"/>
+                            </svg>
+                            Processing Queue
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" onclick="PersimmonProcessor.showPage('review')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+                            </svg>
+                            Review & Approve
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" onclick="PersimmonProcessor.showPage('sources')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z"/>
+                            </svg>
+                            Data Sources
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="processor-main">
+                <!-- Import Data Page -->
+                <div class="page active" id="import-page">
+            <div class="section">
+                <h2 class="section-title">Import Raw Intelligence Data</h2>
+                
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" style="color: #6e6e73;">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                    </div>
+                    <div class="upload-text">Drop files here or click to upload</div>
+                    <div class="upload-subtext">Supports: CSV (Liferaft), JSON (GDELT), RSS XML, TXT files</div>
+                    <input type="file" id="file-input" multiple accept=".csv,.json,.xml,.txt" style="display: none;">
+                </div>
+                
+                <div class="file-list" id="file-list" style="display: none;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Uploaded Files</h3>
+                    <div id="files-container"></div>
+                    
+                    <div style="margin-top: 16px; display: flex; gap: 12px;">
+                        <button class="btn btn-primary" id="process-btn" onclick="PersimmonProcessor.processFiles()">
+                            Process Files
+                        </button>
+                        <button class="btn" onclick="PersimmonProcessor.clearFiles()">Clear All</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Data Sources Section -->
+            <div class="section">
+                <h2 class="section-title">Quick Data Sources</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <button class="btn" onclick="PersimmonProcessor.fetchGDELT()">Fetch GDELT (Free)</button>
+                    <button class="btn" onclick="PersimmonProcessor.fetchRSS()">RSS Feeds</button>
+                    <button class="btn" onclick="PersimmonProcessor.mockLiferaft()">Mock Liferaft CSV</button>
+                    <button class="btn" onclick="PersimmonProcessor.manualEntry()">Manual Entry</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Processing Queue Page -->
+        <div class="page" id="processing-page">
+            <div class="section">
+                <h2 class="section-title">AI Processing Queue</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="font-size: 12px; color: #6e6e73;">
+                        AI is analyzing raw data against PIRs: Ukraine, Industrial Sabotage, Insider Threats
+                    </div>
+                    <button class="btn btn-secondary" onclick="PersimmonProcessor.pauseProcessing()">Pause Processing</button>
+                </div>
+                
+                <div class="processing-queue" id="processing-queue">
+                    <!-- Queue items will be populated here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Review & Approve Page -->
+        <div class="page" id="review-page">
+            <div class="review-section">
+                <div>
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">AI-Processed Items for Review</h2>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" onclick="PersimmonProcessor.approveAll()">Approve All</button>
+                                <button class="btn" onclick="PersimmonProcessor.rejectAll()">Reject All</button>
+                            </div>
+                        </div>
+                        
+                        <div id="review-items">
+                            <!-- Review items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="review-sidebar">
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Review Statistics</h3>
+                        <div class="stat-item">
+                            <span class="stat-label">Pending Review:</span>
+                            <span class="stat-value" id="pending-count">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Approved:</span>
+                            <span class="stat-value" id="approved-count">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Rejected:</span>
+                            <span class="stat-value" id="rejected-count">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Quick Actions</h3>
+                        <button class="btn btn-primary" onclick="PersimmonProcessor.publishToFeed()" style="width: 100%; margin-bottom: 8px;">
+                            Publish to Feed
+                        </button>
+                        <button class="btn" onclick="PersimmonProcessor.exportReview()" style="width: 100%;">
+                            Export Review
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Sources Page -->
+        <div class="page" id="sources-page">
+            <div class="section">
+                <h2 class="section-title">Configure Data Sources</h2>
+                
+                <div class="sources-grid">
+                    <div class="source-card">
+                        <div class="source-header">
+                            <h3 class="source-name">Liferaft</h3>
+                            <span class="source-status status-active">ACTIVE</span>
+                        </div>
+                        <div class="source-description">
+                            CSV export processing from Liferaft social media monitoring platform. Primary source for current operations.
+                        </div>
+                        <div class="source-meta">
+                            <span>Last Import: 2 hours ago</span>
+                            <span>47 items processed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="source-card">
+                        <div class="source-header">
+                            <h3 class="source-name">GDELT</h3>
+                            <span class="source-status status-active">ACTIVE</span>
+                        </div>
+                        <div class="source-description">
+                            Global Database of Events, Language, and Tone. Free access to worldwide news and event data.
+                        </div>
+                        <div class="source-meta">
+                            <span>Auto-fetch: Every 6 hours</span>
+                            <span>23 items processed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="source-card">
+                        <div class="source-header">
+                            <h3 class="source-name">RSS Feeds</h3>
+                            <span class="source-status status-active">ACTIVE</span>
+                        </div>
+                        <div class="source-description">
+                            Curated RSS feeds from major news sources, security blogs, and industry publications.
+                        </div>
+                        <div class="source-meta">
+                            <span>12 active feeds</span>
+                            <span>31 items processed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="source-card">
+                        <div class="source-header">
+                            <h3 class="source-name">Manual Entry</h3>
+                            <span class="source-status status-active">ACTIVE</span>
+                        </div>
+                        <div class="source-description">
+                            Direct analyst input for specialized intelligence, tips, and observations not captured by automated sources.
+                        </div>
+                        <div class="source-meta">
+                            <span>Analyst input</span>
+                            <span>8 items processed</span>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    
+    <!-- Processor-specific functionality -->
+    <script>
+        /**
+         * Persimmon Data Processor - Page Logic
+         * Uses shared Persimmon utilities
+         */
+        const PersimmonProcessor = {
+            // Processor state
+            uploadedFiles: [],
+            processingQueue: [],
+            reviewItems: [],
+            approvedItems: [],
+            rejectedItems: [],
+
+            // Initialize processor
+            init() {
+                this.setupHeader();
+                this.setupFileUpload();
+                this.renderProcessingQueue();
+                this.renderReviewItems();
+                this.updateReviewStats();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Data Processor', 'processor');
+            },
+
+            // Page navigation
+            showPage(pageId) {
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                
+                // Show selected page
+                document.getElementById(pageId + '-page').classList.add('active');
+                event.target.classList.add('active');
+            },
+
+            // File Upload Handling
+            setupFileUpload() {
+                const uploadArea = document.getElementById('upload-area');
+                const fileInput = document.getElementById('file-input');
+                
+                uploadArea.addEventListener('click', () => fileInput.click());
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    this.handleFiles(e.dataTransfer.files);
+                });
+                
+                fileInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+            },
+
+            handleFiles(files) {
+                Array.from(files).forEach(file => {
+                    const fileObj = {
+                        id: Persimmon.utils.generateId(),
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        file: file
+                    };
+                    this.uploadedFiles.push(fileObj);
+                });
+                
+                this.renderFileList();
+            },
+
+            renderFileList() {
+                const fileList = document.getElementById('file-list');
+                const container = document.getElementById('files-container');
+                
+                if (this.uploadedFiles.length === 0) {
+                    fileList.style.display = 'none';
+                    return;
+                }
+                
+                fileList.style.display = 'block';
+                container.innerHTML = this.uploadedFiles.map(file => `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-meta">${Persimmon.utils.formatFileSize(file.size)} • ${Persimmon.csv.detectFileType(file.name)}</div>
+                        </div>
+                        <button class="btn" onclick="PersimmonProcessor.removeFile('${file.id}')">Remove</button>
+                    </div>
+                `).join('');
+            },
+
+            removeFile(fileId) {
+                this.uploadedFiles = this.uploadedFiles.filter(f => f.id !== fileId);
+                this.renderFileList();
+            },
+
+            clearFiles() {
+                this.uploadedFiles = [];
+                this.renderFileList();
+            },
+
+            // Processing Functions
+            async processFiles() {
+                if (this.uploadedFiles.length === 0) {
+                    Persimmon.notifications.warning('Please upload files first');
+                    return;
+                }
+                
+                const btn = document.getElementById('process-btn');
+                Persimmon.ui.setButtonLoading(btn, true, 'Processing...');
+                
+                try {
+                    // Process each file
+                    for (let i = 0; i < this.uploadedFiles.length; i++) {
+                        const file = this.uploadedFiles[i];
+                        await this.processFile(file, i);
+                    }
+                    
+                    // Switch to processing queue view
+                    setTimeout(() => {
+                        this.showPage('processing');
+                        document.querySelector('[onclick*="processing"]').classList.add('active');
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('Processing error:', error);
+                    Persimmon.notifications.error(`Processing failed: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
+                }
+            },
+
+            async processFile(file, index) {
+                try {
+                    const fileContent = await this.readFileContent(file.file);
+                    const items = Persimmon.csv.parse(fileContent, file.name);
+                    
+                    Persimmon.notifications.info(`Processing ${items.length} items from ${file.name}`);
+                    
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        
+                        const queueItem = {
+                            id: Persimmon.utils.generateId(),
+                            title: Persimmon.utils.truncate(item.content, 80),
+                            source: file.name,
+                            status: 'pending',
+                            rawContent: item.content,
+                            originalData: item,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        this.processingQueue.push(queueItem);
+                        
+                        // Start processing with delay
+                        setTimeout(async () => {
+                            await this.processQueueItem(queueItem);
+                        }, (index * 1000) + (i * 200)); // Stagger processing
+                    }
+                    
+                    this.renderProcessingQueue();
+                    
+                } catch (error) {
+                    console.error(`Error processing file ${file.name}:`, error);
+                    Persimmon.notifications.error(`Failed to process ${file.name}: ${error.message}`);
+                }
+            },
+
+            async processQueueItem(queueItem) {
+                queueItem.status = 'processing';
+                this.renderProcessingQueue();
+                
+                try {
+                    const analysis = await Persimmon.api.processWithClaude(queueItem.rawContent, queueItem.source);
+                    
+                    if (analysis.relevant) {
+                        queueItem.status = 'completed';
+                        queueItem.confidence = analysis.confidence;
+                        queueItem.category = analysis.category;
+                        queueItem.priority = analysis.priority;
+                        queueItem.title = analysis.title;
+                        queueItem.summary = analysis.summary;
+                        queueItem.quote = analysis.quote;
+                        queueItem.reasoning = analysis.reasoning;
+                        
+                        this.reviewItems.push(queueItem);
+                    } else {
+                        queueItem.status = 'filtered';
+                        queueItem.reasoning = analysis.reasoning || 'Not relevant to PIRs';
+                    }
+                    
+                } catch (error) {
+                    console.error('Processing error:', error);
+                    queueItem.status = 'error';
+                    queueItem.error = error.message;
+                }
+                
+                this.renderProcessingQueue();
+                this.renderReviewItems();
+                this.updateReviewStats();
+            },
+
+            async readFileContent(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = (e) => reject(new Error('Failed to read file'));
+                    reader.readAsText(file);
+                });
+            },
+
+            // Rendering Functions
+            renderProcessingQueue() {
+                const container = document.getElementById('processing-queue');
+                
+                if (this.processingQueue.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No items in processing queue</div>';
+                    return;
+                }
+                
+                container.innerHTML = this.processingQueue.map(item => `
+                    <div class="queue-item ${item.status}">
+                        <div class="item-content">
+                            <div class="item-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
+                            <div class="item-meta">
+                                ${item.source} • 
+                                ${item.category ? `${Persimmon.utils.capitalize(item.category)} • ` : ''}
+                                ${item.confidence ? `${item.confidence}% confidence` : 'Processing...'}
+                                ${item.reasoning ? ` • ${item.reasoning}` : ''}
+                                ${item.error ? ` • Error: ${item.error}` : ''}
+                            </div>
+                        </div>
+                        <div class="item-status status-${item.status}">
+                            <div class="status-dot"></div>
+                            <span>${item.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            renderReviewItems() {
+                const container = document.getElementById('review-items');
+                const pendingItems = this.reviewItems.filter(item => !item.reviewed);
+                
+                if (pendingItems.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No items pending review</div>';
+                    return;
+                }
+                
+                container.innerHTML = pendingItems.map(item => `
+                    <div class="review-item ${item.decision || ''}" id="review-${item.id}">
+                        <div class="review-header">
+                            <div class="review-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
+                            <div class="ai-confidence">${item.confidence}% confidence</div>
+                        </div>
+                        <div class="review-summary">${Persimmon.utils.sanitizeHtml(item.summary)}</div>
+                        ${item.quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
+                        <div class="review-meta">
+                            <span>${item.source}</span>
+                            <span>${item.category.toUpperCase()}</span>
+                            <span>${item.priority.toUpperCase()} PRIORITY</span>
+                        </div>
+                        <div class="review-actions">
+                            <button class="action-btn approve" onclick="PersimmonProcessor.reviewItem('${item.id}', 'approve')">Approve</button>
+                            <button class="action-btn reject" onclick="PersimmonProcessor.reviewItem('${item.id}', 'reject')">Reject</button>
+                            <button class="action-btn" onclick="PersimmonProcessor.editReviewItem('${item.id}')">Edit</button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // Review Functions
+            reviewItem(itemId, decision) {
+                const item = this.reviewItems.find(i => i.id === itemId);
+                if (item) {
+                    item.reviewed = true;
+                    item.decision = decision;
+                    
+                    if (decision === 'approve') {
+                        this.approvedItems.push(item);
+                        Persimmon.notifications.success('Item approved');
+                    } else {
+                        this.rejectedItems.push(item);
+                        Persimmon.notifications.info('Item rejected');
+                    }
+                    
+                    const element = document.getElementById(`review-${itemId}`);
+                    if (element) {
+                        element.classList.add(decision === 'approve' ? 'approved' : 'rejected');
+                        
+                        setTimeout(() => {
+                            this.renderReviewItems();
+                            this.updateReviewStats();
+                        }, 1000);
+                    }
+                }
+            },
+
+            approveAll() {
+                const pendingItems = this.reviewItems.filter(item => !item.reviewed);
+                if (pendingItems.length === 0) {
+                    Persimmon.notifications.warning('No items to approve');
+                    return;
+                }
+                
+                pendingItems.forEach(item => {
+                    this.reviewItem(item.id, 'approve');
+                });
+                
+                Persimmon.notifications.success(`Approved ${pendingItems.length} items`);
+            },
+
+            rejectAll() {
+                const pendingItems = this.reviewItems.filter(item => !item.reviewed);
+                if (pendingItems.length === 0) {
+                    Persimmon.notifications.warning('No items to reject');
+                    return;
+                }
+                
+                pendingItems.forEach(item => {
+                    this.reviewItem(item.id, 'reject');
+                });
+                
+                Persimmon.notifications.info(`Rejected ${pendingItems.length} items`);
+            },
+
+            editReviewItem(itemId) {
+                const item = this.reviewItems.find(i => i.id === itemId);
+                if (item) {
+                    const newTitle = prompt('Edit title:', item.title);
+                    if (newTitle) item.title = newTitle;
+                    
+                    const newSummary = prompt('Edit summary:', item.summary);
+                    if (newSummary) item.summary = newSummary;
+                    
+                    const newCategory = prompt('Edit category (ukraine/sabotage/insider):', item.category);
+                    if (newCategory && ['ukraine', 'sabotage', 'insider'].includes(newCategory)) {
+                        item.category = newCategory;
+                    }
+                    
+                    const newPriority = prompt('Edit priority (high/medium/low):', item.priority);
+                    if (newPriority && ['high', 'medium', 'low'].includes(newPriority)) {
+                        item.priority = newPriority;
+                    }
+                    
+                    this.renderReviewItems();
+                    Persimmon.notifications.success('Item updated');
+                }
+            },
+
+            updateReviewStats() {
+                const pending = this.reviewItems.filter(item => !item.reviewed).length;
+                const approved = this.approvedItems.length;
+                const rejected = this.rejectedItems.length;
+                
+                Persimmon.ui.updateText('pending-count', pending.toString());
+                Persimmon.ui.updateText('approved-count', approved.toString());
+                Persimmon.ui.updateText('rejected-count', rejected.toString());
+            },
+
+            // Export Functions
+            publishToFeed() {
+                if (this.approvedItems.length === 0) {
+                    Persimmon.notifications.warning('No approved items to publish');
+                    return;
+                }
+                
+                const button = event.target;
+                Persimmon.ui.setButtonLoading(button, true, 'Publishing...');
+                
+                // Convert approved items to feed format
+                const feedItems = this.approvedItems.map(item => ({
+                    id: Persimmon.utils.generateId(),
+                    title: item.title,
+                    category: item.category,
+                    priority: item.priority,
+                    source: `Processed from ${item.source}`,
+                    originalSource: item.source,
+                    date: new Date().toISOString().split('T')[0],
+                    time: 'Just now',
+                    summary: item.summary,
+                    quote: item.quote || '',
+                    link: item.originalData?.url || '',
+                    analystComment: `AI-processed with ${item.confidence}% confidence. ${item.reasoning}`,
+                    aiProcessed: true,
+                    confidence: item.confidence,
+                    selected: false
+                }));
+                
+                // Store in localStorage to pass to feed
+                Persimmon.storage.set('newFeedItems', feedItems);
+                
+                setTimeout(() => {
+                    Persimmon.ui.setButtonLoading(button, false);
+                    
+                    // Clear approved items
+                    this.approvedItems = [];
+                    this.updateReviewStats();
+                    
+                    Persimmon.notifications.success(`Published ${feedItems.length} items to intelligence feed!`);
+                    
+                    if (confirm('Items published successfully! Open Intelligence Feed to view the new items?')) {
+                        window.open('./feed.html', '_blank');
+                    }
+                }, 1500);
+            },
+
+            exportReview() {
+                const reviewData = {
+                    processed: new Date().toISOString(),
+                    approved: this.approvedItems,
+                    rejected: this.rejectedItems,
+                    pending: this.reviewItems.filter(item => !item.reviewed)
+                };
+                
+                const dataStr = JSON.stringify(reviewData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `persimmon-review-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                Persimmon.notifications.success('Review data exported successfully');
+            },
+
+            // Quick Data Sources
+            fetchGDELT() {
+                Persimmon.notifications.info('GDELT integration would fetch recent events matching PIRs');
+                // In production, this would integrate with GDELT API
+            },
+
+            fetchRSS() {
+                Persimmon.notifications.info('RSS feed integration would monitor security publications');
+                // In production, this would fetch RSS feeds
+            },
+
+            mockLiferaft() {
+                // Create a mock Liferaft CSV file with enhanced geographic and category data
+                const csvContent = `"Date","Source","Content","Location","Coordinates","Category","Priority","Sentiment","Relevance","Author","URL"
+"2025-07-30","Twitter","Ukrainian forces report breakthrough near Bakhmut sector, 3rd Assault Brigade secured key positions overlooking main supply corridor","Bakhmut, Ukraine","48.5958,38.1292","ukraine","high","neutral","High","@UkrMilitary","https://twitter.com/example1"
+"2025-07-30","Telegram","Infrastructure vulnerability discussion targeting SCADA systems in regional industrial facilities, sophisticated malware designed for operational technology","Bucharest, Romania","44.4268,26.1025","sabotage","medium","negative","High","InfraWatch","https://t.me/example2"
+"2025-07-30","LinkedIn","Employee expressing concerns about security protocols at major tech facility, potential insider access issues and clearance problems","Berlin, Germany","52.5200,13.4050","insider","high","negative","High","TechWorker_DE","https://linkedin.com/example3"
+"2025-07-30","Facebook","Industrial facility power outage reported, possible sabotage indicators at energy infrastructure, coordinated attack patterns","Sopot, Poland","54.4518,18.5681","sabotage","medium","neutral","High","EnergyAlert","https://facebook.com/example4"
+"2025-07-29","Twitter","Ukrainian military sources confirm territorial gains along strategic supply routes, Russian forces conducting organized withdrawal","Kramatorsk, Ukraine","48.7233,37.5609","ukraine","high","positive","High","@DefenseUpdate","https://twitter.com/example5"
+"2025-07-29","Reddit","Discussion of vulnerabilities in critical infrastructure monitoring systems, APT groups targeting industrial control systems","Prague, Czech Republic","50.0755,14.4378","sabotage","low","negative","Medium","CyberSecPro","https://reddit.com/example6"
+"2025-07-29","Telegram","Insider reports unusual activity patterns at industrial facilities, enhanced monitoring of critical facility perimeters recommended","Warsaw, Poland","52.2297,21.0122","insider","medium","negative","Medium","SecurityInsider","https://t.me/example7"
+"2025-07-28","Twitter","Reports of coordinated cyber attacks on energy sector SCADA systems, attack methodology matches previous campaigns","Vienna, Austria","48.2082,16.3738","sabotage","high","negative","High","@CyberThreatIntel","https://twitter.com/example8"
+"2025-07-28","LinkedIn","Regional security assessment indicates elevated threat indicators for Q4 monitoring period","Budapest, Hungary","47.4979,19.0402","ukraine","medium","neutral","Medium","SecurityAnalyst_EU","https://linkedin.com/example9"
+"2025-07-27","Facebook","Industrial reconnaissance activities detected targeting control systems, preliminary indicators suggest coordinated effort","Krakow, Poland","50.0647,19.9450","sabotage","medium","negative","High","IndustrialSec","https://facebook.com/example10"`;
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const file = new File([blob], 'mock_liferaft_export.csv', { type: 'text/csv' });
+                
+                this.handleFiles([file]);
+                Persimmon.notifications.success('Mock Liferaft CSV generated and uploaded!');
+            },
+
+            manualEntry() {
+                const title = prompt('Enter intelligence item title:');
+                if (!title) return;
+                
+                const summary = prompt('Enter summary:');
+                if (!summary) return;
+                
+                const category = prompt('Enter category (ukraine/sabotage/insider):') || 'ukraine';
+                const priority = prompt('Enter priority (high/medium/low):') || 'medium';
+                
+                const manualItem = {
+                    id: Persimmon.utils.generateId(),
+                    title: title,
+                    category: category,
+                    priority: priority,
+                    source: 'Manual Entry',
+                    summary: summary,
+                    quote: '',
+                    reasoning: 'Manually entered by analyst',
+                    confidence: 100,
+                    reviewed: false
+                };
+                
+                // Add directly to review items
+                this.reviewItems.push(manualItem);
+                this.renderReviewItems();
+                this.updateReviewStats();
+                
+                Persimmon.notifications.success('Manual item added to review queue');
+            },
+
+            pauseProcessing() {
+                const btn = event.target;
+                if (btn.textContent === 'Pause Processing') {
+                    btn.textContent = 'Resume Processing';
+                    btn.classList.remove('btn-secondary');
+                    btn.classList.add('btn-primary');
+                    Persimmon.notifications.info('Processing paused');
+                } else {
+                    btn.textContent = 'Pause Processing';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-secondary');
+                    Persimmon.notifications.info('Processing resumed');
+                }
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonProcessor.init();
+        });
+
+        // Make functions available globally for onclick handlers
+        window.PersimmonProcessor = PersimmonProcessor;
+    </script>
+</body>
+</html>

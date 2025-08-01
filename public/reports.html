@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Reports - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <style>
+        /* Reports-specific styles */
+        .report-builder {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+        }
+        
+        .report-preview {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 600px;
+        }
+        
+        .report-controls {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 120px;
+        }
+        
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--persimmon-orange);
+        }
+        
+        .report-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .report-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .report-meta {
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            font-size: 12px;
+        }
+        
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .meta-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        .executive-summary {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 12px;
+            background: var(--bg-white);
+            border-radius: 6px;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--persimmon-orange);
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        
+        .threat-level-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .threat-high { 
+            background: #fecaca; 
+            color: #991b1b; 
+        }
+        
+        .threat-medium { 
+            background: #fed7aa; 
+            color: #9a3412; 
+        }
+        
+        .threat-low { 
+            background: #bbf7d0; 
+            color: #166534; 
+        }
+        
+        .report-vignette {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .vignette-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .vignette-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            margin-right: 16px;
+        }
+        
+        .vignette-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+        
+        .vignette-summary {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .vignette-quote {
+            font-style: italic;
+            color: var(--leaf-green);
+            border-left: 2px solid var(--leaf-green-light);
+            padding-left: 12px;
+            margin: 12px 0;
+            font-size: 12px;
+        }
+        
+        .vignette-analysis {
+            background: #f0f9ff;
+            border-left: 2px solid var(--accent-blue);
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .analysis-label {
+            font-weight: 600;
+            color: var(--accent-blue);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .analysis-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        .report-recommendations {
+            background: #f0f9ff;
+            border-left: 4px solid var(--accent-blue);
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .recommendations-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 12px;
+        }
+        
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .recommendation-section h4 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .recommendation-section ol {
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding-left: 16px;
+        }
+        
+        .recommendation-section li {
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+        
+        .sources-summary {
+            background: #f8fafc;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 30px;
+        }
+        
+        .sources-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .sources-list {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .control-section:last-child {
+            border-bottom: none;
+        }
+        
+        .control-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        
+        .template-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .template-option {
+            padding: 8px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            background: var(--bg-white);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .template-option:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .template-option.active {
+            background: var(--persimmon-orange);
+            color: white;
+            border-color: var(--persimmon-orange);
+        }
+        
+        .data-source {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-align: right;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        
+        .print-header {
+            display: none;
+        }
+        
+        /* Editable content styles */
+        .editable-content {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .editable-content:hover {
+            border-color: #3b82f6 !important;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        
+        .editable-content:focus {
+            outline: none;
+            border-color: #3b82f6 !important;
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        
+        .editable-content::before {
+            content: "✏️ Click to edit";
+            position: absolute;
+            top: -20px;
+            right: 0;
+            font-size: 10px;
+            color: #6b7280;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+        
+        .editable-content:hover::before {
+            opacity: 1;
+        }
+        
+        @media print {
+            .report-controls,
+            .btn,
+            .header-actions {
+                display: none !important;
+            }
+            
+            .report-builder {
+                grid-template-columns: 1fr;
+            }
+            
+            .report-preview {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+            
+            .print-header {
+                display: block;
+                text-align: center;
+                margin-bottom: 20px;
+                padding-bottom: 20px;
+                border-bottom: 2px solid #333;
+            }
+            
+            body {
+                background: white;
+            }
+            
+            .persimmon-header {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <div class="feed-header">
+            <h1 class="feed-title">Weekly Intelligence Reports</h1>
+            <div class="feed-meta">
+                <span>Generate professional intelligence briefings</span>
+                <span>•</span>
+                <span id="selectedItemsCount">0 items selected from feed</span>
+                <span>•</span>
+                <span id="lastUpdated">Last updated: Never</span>
+            </div>
+        </div>
+        
+        <!-- Report Generation Controls -->
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 class="section-title">Report Builder</h2>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn" onclick="PersimmonReports.loadFromFeed()">Load from Feed</button>
+                    <button class="btn btn-secondary" onclick="PersimmonReports.generatePDF()">Export PDF</button>
+                    <button class="btn btn-primary" onclick="PersimmonReports.updateReport()">Update Report</button>
+                </div>
+            </div>
+            
+            <div class="report-builder">
+                <div class="report-preview" id="report-preview">
+                    <!-- Report preview will be generated here -->
+                    <div class="print-header">
+                        <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Weekly Threat Intelligence Report</div>
+                        <div style="font-size: 12px; color: #666;">Corporate Security Intelligence Brief</div>
+                    </div>
+                    
+                    <div style="text-align: center; color: #6e6e73; padding: 100px 20px;">
+                        <svg width="64" height="64" viewBox="0 0 50 50" fill="currentColor" style="opacity: 0.3; margin-bottom: 20px;">
+                            <circle cx="25" cy="25" r="22" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="25" cy="25" r="8" fill="currentColor"/>
+                            <circle cx="25" cy="25" r="3" fill="white"/>
+                            <circle cx="35" cy="15" r="4" fill="currentColor"/>
+                            <circle cx="35" cy="15" r="2" fill="white"/>
+                        </svg>
+                        <div style="font-size: 18px; font-weight: 500; margin-bottom: 8px;">No Report Data</div>
+                        <div style="font-size: 14px;">Load intelligence items from the feed or generate a sample report</div>
+                    </div>
+                </div>
+                
+                <div class="report-controls">
+                    <div class="control-section">
+                        <h3 class="control-title">Report Template</h3>
+                        
+                        <div class="template-options">
+                            <div class="template-option active" data-template="weekly">
+                                Weekly Threat Report
+                            </div>
+                            <div class="template-option" data-template="executive">
+                                Executive Summary
+                            </div>
+                            <div class="template-option" data-template="tactical">
+                                Tactical Brief
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Report Settings</h3>
+                        
+                        <div class="input-group" style="margin-bottom: 12px;">
+                            <label>Report Period</label>
+                            <input type="text" id="reportPeriod" placeholder="July 25 - August 1, 2025">
+                        </div>
+                        
+                        <div class="input-group" style="margin-bottom: 12px;">
+                            <label>Classification</label>
+                            <select id="classification">
+                                <option value="internal">Internal Use Only</option>
+                                <option value="confidential">Confidential</option>
+                                <option value="restricted">Restricted</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Threat Level</label>
+                            <select id="threatLevel">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Quick Actions</h3>
+                        
+                        <button class="btn" style="width: 100%; margin-bottom: 8px;" onclick="PersimmonReports.generateSampleReport()">
+                            Generate Sample
+                        </button>
+                        
+                        <button class="btn" style="width: 100%; margin-bottom: 8px;" onclick="PersimmonReports.saveTemplate()">
+                            Save Template
+                        </button>
+                        
+                        <button class="btn" style="width: 100%;" onclick="window.print()">
+                            Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    
+    <!-- Reports-specific functionality -->
+    <script>
+        /**
+         * Persimmon Weekly Reports - Page Logic
+         * Uses shared Persimmon utilities
+         */
+        const PersimmonReports = {
+            // Report state
+            reportData: null,
+            selectedTemplate: 'weekly',
+            
+            // Initialize reports page
+            init() {
+                this.setupHeader();
+                this.setupTemplateSelection();
+                this.loadReportData();
+                this.updateSelectedItemsCount();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Weekly Reports', 'reports');
+            },
+
+            setupTemplateSelection() {
+                const templateOptions = document.querySelectorAll('.template-option');
+                templateOptions.forEach(option => {
+                    option.addEventListener('click', () => {
+                        templateOptions.forEach(opt => opt.classList.remove('active'));
+                        option.classList.add('active');
+                        this.selectedTemplate = option.dataset.template;
+                        this.renderReport();
+                    });
+                });
+
+                // Make Report Settings inputs functional
+                const reportPeriod = document.getElementById('reportPeriod');
+                const classification = document.getElementById('classification');
+                const threatLevel = document.getElementById('threatLevel');
+
+                reportPeriod.addEventListener('input', () => {
+                    if (this.reportData) this.renderReport();
+                });
+
+                classification.addEventListener('change', () => {
+                    if (this.reportData) this.renderReport();
+                });
+
+                threatLevel.addEventListener('change', () => {
+                    if (this.reportData) this.renderReport();
+                });
+            },
+
+            // Load report data from storage
+            loadReportData() {
+                const storedData = Persimmon.storage.get('weeklyReportData');
+                if (storedData) {
+                    this.reportData = storedData;
+                    this.renderReport();
+                    Persimmon.notifications.success('Report data loaded from intelligence feed');
+                }
+            },
+
+            loadFromFeed() {
+                // This would typically open the feed and allow selection
+                // For now, we'll simulate loading data
+                const mockData = {
+                    date: new Date().toISOString().split('T')[0],
+                    items: [
+                        {
+                            title: "Ukrainian Forces Report Breakthrough Near Bakhmut",
+                            category: "ukraine",
+                            priority: "high",
+                            summary: "Ukrainian military sources report successful breakthrough of Russian defensive positions east of Bakhmut, with territorial gains of approximately 2km along strategic supply route.",
+                            quote: "3rd Assault Brigade has secured key positions overlooking the main supply corridor.",
+                            analystComment: "Significant tactical development. First major Ukrainian breakthrough in this sector since February.",
+                            source: "Liferaft",
+                            aiProcessed: false
+                        },
+                        {
+                            title: "Industrial Facility Cyber Attack - Critical Infrastructure",
+                            category: "sabotage",
+                            priority: "medium",
+                            summary: "Coordinated cyber attack targeting industrial control systems at energy facility in Romania. Attack patterns consistent with previous infrastructure campaigns.",
+                            quote: "Initial forensics suggest sophisticated malware designed specifically for SCADA systems.",
+                            analystComment: "Attack methodology matches patterns seen in previous campaigns attributed to APT groups.",
+                            source: "GDELT",
+                            aiProcessed: true
+                        }
+                    ],
+                    summary: this.generateReportSummary([])
+                };
+                
+                if (confirm('Load sample intelligence items for report generation?')) {
+                    this.reportData = mockData;
+                    this.renderReport();
+                    Persimmon.notifications.success('Sample intelligence data loaded');
+                }
+            },
+
+            updateSelectedItemsCount() {
+                const count = this.reportData ? this.reportData.items.length : 0;
+                Persimmon.ui.updateText('selectedItemsCount', `${count} items selected from feed`);
+            },
+
+            // Report generation functions
+            generateSampleReport() {
+                const sampleData = {
+                    date: new Date().toISOString().split('T')[0],
+                    items: [
+                        {
+                            title: "Regional Security Assessment - Eastern Europe",
+                            category: "ukraine",
+                            priority: "high",
+                            summary: "Comprehensive analysis of regional security developments following recent diplomatic initiatives and military repositioning in Eastern European theater.",
+                            quote: "Strategic implications extend beyond immediate tactical considerations to broader geopolitical realignment patterns.",
+                            analystComment: "Elevated threat indicators suggest continued monitoring required for Q4 assessment period.",
+                            source: "Multi-source Analysis",
+                            aiProcessed: false
+                        },
+                        {
+                            title: "Industrial Infrastructure Monitoring Alert",
+                            category: "sabotage",
+                            priority: "medium",
+                            summary: "Anomalous activity patterns detected across critical infrastructure monitoring networks, requiring enhanced vigilance protocols.",
+                            quote: "Preliminary indicators suggest coordinated reconnaissance activities targeting industrial control systems.",
+                            analystComment: "Recommend immediate review of access controls and enhanced monitoring of critical facility perimeters.",
+                            source: "Internal Monitoring",
+                            aiProcessed: true
+                        }
+                    ]
+                };
+                
+                sampleData.summary = this.generateReportSummary(sampleData.items);
+                this.reportData = sampleData;
+                this.renderReport();
+                this.updateSelectedItemsCount();
+                
+                Persimmon.notifications.success('Sample report generated successfully');
+            },
+
+            updateReport() {
+                if (!this.reportData || this.reportData.items.length === 0) {
+                    Persimmon.notifications.warning('No intelligence items available. Load data from feed or generate sample.');
+                    return;
+                }
+
+                const button = event.target;
+                Persimmon.ui.setButtonLoading(button, true, 'Updating...');
+
+                setTimeout(() => {
+                    this.renderReport();
+                    this.updateLastUpdated();
+                    Persimmon.ui.setButtonLoading(button, false);
+                    Persimmon.notifications.success('Report updated successfully');
+                }, 1500);
+            },
+
+            updateLastUpdated() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                Persimmon.ui.updateText('lastUpdated', `Last updated: ${timeString}`);
+            },
+
+            renderReport() {
+                if (!this.reportData) return;
+
+                const container = document.getElementById('report-preview');
+                const period = document.getElementById('reportPeriod').value || 'Current Week';
+                const classification = document.getElementById('classification').value || 'internal';
+                const threatLevel = document.getElementById('threatLevel').value || 'medium';
+
+                container.innerHTML = this.getReportTemplate(period, classification, threatLevel);
+                this.updateSelectedItemsCount();
+                
+                // Initialize charts and maps after DOM is updated
+                setTimeout(() => {
+                    this.initializeCharts();
+                    this.initializeMap();
+                }, 100);
+            },
+
+            getReportTemplate(period, classification, threatLevel) {
+                const data = this.reportData;
+                const classificationText = classification.charAt(0).toUpperCase() + classification.slice(1).replace('_', ' ');
+                
+                const stats = this.calculateStats(data.items);
+                
+                return `
+                    <div class="report-header">
+                        <h1 class="report-title">Weekly Threat Intelligence Report</h1>
+                        <div class="report-subtitle">Corporate Security Intelligence Brief</div>
+                    </div>
+                    
+                    <div class="report-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">Period:</span>
+                            <span>${period}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Classification:</span>
+                            <span>${classificationText}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Prepared by:</span>
+                            <span>Corporate Security Team</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Report Date:</span>
+                            <span>${Persimmon.utils.formatDate(new Date())}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- BLUF: Key Collection Outcomes (moved to top) -->
+                    <div class="executive-summary" style="background: #f0f9ff; border-left: 4px solid #0ea5e9;">
+                        <h2 class="summary-title">Key Collection Outcomes</h2>
+                        <div contenteditable="true" class="editable-content" data-section="bluf" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
+                            <p style="margin-bottom: 16px;">${this.generateKeyCollectionOutcomes(data.items)}</p>
+                            <ul style="margin-left: 20px; margin-bottom: 16px;">
+                                <li>No direct threats to facilities identified in monitored timeframe</li>
+                                <li>Regional security incidents successfully detected and assessed for relevance</li>
+                                <li>General sentiment analysis completed showing contextual threat environment</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="executive-summary">
+                        <h2 class="summary-title">Executive Summary</h2>
+                        <div contenteditable="true" class="editable-content" data-section="executive" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
+                            <p style="margin-bottom: 16px;">${this.generateExecutiveSummary(data.items, threatLevel)}</p>
+                        </div>
+                        
+                        <div class="summary-stats">
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.total}</div>
+                                <div class="stat-label">Intelligence Items</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${stats.high}</div>
+                                <div class="stat-label">High Priority</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${this.getUniqueSources(data.items).length}</div>
+                                <div class="stat-label">Sources Analyzed</div>
+                            </div>
+                            <div class="stat-card">
+                                <span class="threat-level-badge threat-${threatLevel}">${threatLevel.toUpperCase()}</span>
+                                <div class="stat-label">Current Threat Level</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Geographic Threat Overview -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1e293b; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">Geographic Threat Overview</h2>
+                        <div id="threatMap" style="height: 400px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div>
+                    </div>
+                    
+                    <!-- Intelligence Assessment -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1e293b; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">Intelligence Assessment</h2>
+                        
+                        ${data.items.map(item => this.renderVignette(item)).join('')}
+                    </div>
+                    
+                    <!-- Threat Trends Analysis -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1e293b; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">Threat Trends Analysis</h2>
+                        <div style="position: relative; height: 300px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <canvas id="threatTrendsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Intelligence Sources Distribution -->
+                    <div style="margin-bottom: 30px;">
+                        <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1e293b; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">Intelligence Sources Distribution</h2>
+                        <div style="position: relative; height: 300px; background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <canvas id="dataSourcesChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Assessment Summary (editable) -->
+                    <div style="margin-top: 30px; padding: 20px; background: #f0f9ff; border-left: 4px solid #0ea5e9; border-radius: 0 8px 8px 0;">
+                        <h3 style="font-size: 16px; font-weight: 600; color: #0c4a6e; margin-bottom: 12px;">Assessment Summary</h3>
+                        <div contenteditable="true" class="editable-content" data-section="assessment" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
+                            <p style="color: #0c4a6e; font-size: 13px; line-height: 1.4; margin: 0;">
+                                ${this.generateAssessmentSummary(data.items)} No concrete or direct threats to facilities identified in monitored sources. Regional climate includes isolated but credible examples of infrastructure concerns. Continued monitoring recommended with standard security protocols maintained.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="sources-summary">
+                        <h4 class="sources-title">Intelligence Collection Summary</h4>
+                        <div class="sources-list">
+                            <strong>Primary Sources:</strong> ${this.getUniqueSources(data.items).join(', ')}<br>
+                            <strong>Collection Period:</strong> ${period}<br>
+                            <strong>Data Quality:</strong> High-confidence assessment based on multiple source verification<br>
+                            <strong>Processing Method:</strong> AI-assisted analysis with human validation (${stats.aiProcessed}/${stats.total} items AI-processed)
+                        </div>
+                    </div>
+                    
+                    <div class="data-source">
+                        Generated by Persimmon Intelligence Platform • ${new Date().toLocaleString()}
+                    </div>
+                `;
+            },
+
+            renderVignette(item) {
+                return `
+                    <div class="report-vignette">
+                        <div class="vignette-header">
+                            <h3 class="vignette-title">${Persimmon.utils.sanitizeHtml(item.title)}</h3>
+                            ${Persimmon.ui.createPriorityBadge(item.priority)}
+                        </div>
+                        
+                        <div class="vignette-meta">
+                            <strong>Source:</strong> ${item.source} | <strong>Category:</strong> ${Persimmon.utils.capitalize(item.category)} | <strong>Date:</strong> ${Persimmon.utils.formatDate(new Date())}
+                            ${item.aiProcessed ? ' | <strong>AI Processed</strong>' : ''}
+                        </div>
+                        
+                        <div class="vignette-summary">
+                            <strong>Situation:</strong> ${Persimmon.utils.sanitizeHtml(item.summary)}
+                        </div>
+                        
+                        ${item.quote ? `<div class="vignette-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
+                        
+                        ${item.analystComment ? `
+                            <div class="vignette-analysis">
+                                <div class="analysis-label">Analyst Assessment</div>
+                                <div class="analysis-text">${Persimmon.utils.sanitizeHtml(item.analystComment)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            },
+
+            // Utility functions
+            calculateStats(items) {
+                return {
+                    total: items.length,
+                    high: items.filter(i => i.priority === 'high').length,
+                    medium: items.filter(i => i.priority === 'medium').length,
+                    low: items.filter(i => i.priority === 'low').length,
+                    aiProcessed: items.filter(i => i.aiProcessed).length,
+                    ukraine: items.filter(i => i.category === 'ukraine').length,
+                    sabotage: items.filter(i => i.category === 'sabotage').length,
+                    insider: items.filter(i => i.category === 'insider').length
+                };
+            },
+
+            generateExecutiveSummary(items, threatLevel) {
+                const stats = this.calculateStats(items);
+                const categories = [];
+                if (stats.ukraine > 0) categories.push(`${stats.ukraine} Ukraine-related`);
+                if (stats.sabotage > 0) categories.push(`${stats.sabotage} industrial sabotage`);
+                if (stats.insider > 0) categories.push(`${stats.insider} insider threat`);
+                
+                return `Intelligence monitoring of priority requirements identified ${stats.total} items of interest during the reporting period, including ${categories.join(', ')} developments. Current threat assessment remains ${threatLevel.toUpperCase()} with ${stats.high} high-priority items requiring immediate attention. AI-assisted processing enhanced analysis efficiency for ${stats.aiProcessed} items while maintaining quality assurance through human validation.`;
+            },
+
+            generateKeyCollectionOutcomes(items) {
+                const stats = this.calculateStats(items);
+                const sources = this.getUniqueSources(items);
+                
+                return `Intelligence collection during the reporting period successfully identified ${stats.total} items of interest across ${sources.length} primary sources. Collection focused on priority intelligence requirements including Ukraine developments (${stats.ukraine} items), industrial sabotage indicators (${stats.sabotage} items), and insider threat assessments (${stats.insider} items). High-confidence analysis achieved through multi-source verification and human validation processes.`;
+            },
+
+            generateAssessmentSummary(items) {
+                const stats = this.calculateStats(items);
+                if (stats.high > 0) {
+                    return `${stats.high} high-priority threats identified requiring immediate leadership attention.`;
+                } else if (stats.medium > 0) {
+                    return `${stats.medium} medium-priority items flagged for monitoring and potential escalation.`;
+                } else {
+                    return `No immediate threats identified during monitoring period.`;
+                }
+            },
+
+            generateReportSummary(items) {
+                const stats = this.calculateStats(items);
+                return `${items.length} intelligence items analyzed across priority requirements`;
+            },
+
+            getUniqueSources(items) {
+                const sources = [...new Set(items.map(item => item.source))];
+                return sources.length > 0 ? sources : ['Multiple Sources'];
+            },
+
+            // Export functions
+            generatePDF() {
+                if (!this.reportData || this.reportData.items.length === 0) {
+                    Persimmon.notifications.warning('No report data available to export');
+                    return;
+                }
+
+                const button = event.target;
+                Persimmon.ui.setButtonLoading(button, true, 'Generating PDF...');
+
+                // Simulate PDF generation
+                setTimeout(() => {
+                    Persimmon.ui.setButtonLoading(button, false);
+                    Persimmon.notifications.success('PDF export completed');
+                    
+                    // In production, this would generate and download a real PDF
+                    if (confirm('PDF generation simulated. Use browser Print function for actual PDF?\n\n(Ctrl/Cmd + P)')) {
+                        window.print();
+                    }
+                }, 2000);
+            },
+
+            saveTemplate() {
+                const templateData = {
+                    template: this.selectedTemplate,
+                    period: document.getElementById('reportPeriod').value,
+                    classification: document.getElementById('classification').value,
+                    threatLevel: document.getElementById('threatLevel').value,
+                    savedAt: new Date().toISOString()
+                };
+
+                Persimmon.storage.set('reportTemplate', templateData);
+                Persimmon.notifications.success('Report template saved successfully');
+            },
+
+            // Chart and Map initialization
+            initializeMap() {
+                const mapContainer = document.getElementById('threatMap');
+                if (!mapContainer) return;
+
+                try {
+                    // Clear any existing map
+                    mapContainer.innerHTML = '';
+                    
+                    const map = L.map('threatMap').setView([52.0, 19.0], 5); // Centered on Central Europe
+                    
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    
+                    // Add threat markers based on intelligence data
+                    const threats = [
+                        {lat: 48.5958, lng: 38.1292, title: "Bakhmut Sector", level: "high", description: "Ukrainian breakthrough reported"},
+                        {lat: 44.4268, lng: 26.1025, title: "Bucharest Infrastructure", level: "medium", description: "Cyber attack on energy facility"},
+                        {lat: 52.2297, lng: 21.0122, title: "Warsaw Region", level: "low", description: "General monitoring area"},
+                        {lat: 50.0755, lng: 14.4378, title: "Prague Sector", level: "low", description: "Infrastructure monitoring"}
+                    ];
+                    
+                    threats.forEach(threat => {
+                        const color = threat.level === 'high' ? '#ef4444' : threat.level === 'medium' ? '#f59e0b' : '#10b981';
+                        L.circleMarker([threat.lat, threat.lng], {
+                            color: color,
+                            fillColor: color,
+                            fillOpacity: 0.7,
+                            radius: threat.level === 'high' ? 12 : threat.level === 'medium' ? 8 : 6
+                        }).addTo(map).bindPopup(`<b>${threat.title}</b><br>Status: ${threat.description}<br>Level: ${threat.level.toUpperCase()}`);
+                    });
+                } catch (error) {
+                    console.error('Map initialization error:', error);
+                    mapContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #6e6e73;">Map unavailable</div>';
+                }
+            },
+
+            initializeCharts() {
+                this.initializeThreatTrendsChart();
+                this.initializeDataSourcesChart();
+            },
+
+            initializeThreatTrendsChart() {
+                const canvas = document.getElementById('threatTrendsChart');
+                if (!canvas) return;
+
+                try {
+                    const ctx = canvas.getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Current'],
+                            datasets: [{
+                                label: 'High Priority Threats',
+                                data: [2, 1, 3, 2, this.reportData ? this.calculateStats(this.reportData.items).high : 1],
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }, {
+                                label: 'Medium Priority',
+                                data: [3, 4, 2, 5, this.reportData ? this.calculateStats(this.reportData.items).medium : 2],
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }, {
+                                label: 'Infrastructure Incidents',
+                                data: [1, 2, 1, 1, 2],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Threat Activity Trends (5-Week Period)'
+                                },
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Incidents'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Threat trends chart error:', error);
+                }
+            },
+
+            initializeDataSourcesChart() {
+                const canvas = document.getElementById('dataSourcesChart');
+                if (!canvas) return;
+
+                try {
+                    const ctx = canvas.getContext('2d');
+                    const sources = this.reportData ? this.getUniqueSources(this.reportData.items) : ['Liferaft', 'GDELT', 'Internal'];
+                    
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Liferaft', 'GDELT', 'Internal Monitoring', 'RSS Feeds', 'Manual Entry'],
+                            datasets: [{
+                                data: [35, 25, 20, 15, 5],
+                                backgroundColor: [
+                                    '#3b82f6',
+                                    '#10b981',
+                                    '#f59e0b',
+                                    '#ef4444',
+                                    '#8b5cf6'
+                                ],
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Intelligence Sources Distribution (%)'
+                                },
+                                legend: {
+                                    position: 'right'
+                                }
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error('Data sources chart error:', error);
+                }
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonReports.init();
+        });
+
+        // Make functions available globally for onclick handlers
+        window.PersimmonReports = PersimmonReports;
+    </script>
+</body>
+</html>
