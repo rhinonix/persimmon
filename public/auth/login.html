@@ -256,11 +256,16 @@
 
             async setupAuth0() {
                 try {
-                    // Get Auth0 configuration from environment variables
-                    // These will be set by the Auth0 Netlify extension
-                    const domain = window.ENV?.AUTH0_DOMAIN || 'your-auth0-domain.auth0.com';
-                    const clientId = window.ENV?.AUTH0_CLIENT_ID || 'your-auth0-client-id';
-                    const audience = window.ENV?.AUTH0_AUDIENCE || '';
+                    // Auth0 configuration - replace these with your actual values
+                    // Get these from your Auth0 dashboard after setting up your application
+                    const domain = 'your-auth0-domain.auth0.com'; // Replace with your Auth0 domain
+                    const clientId = 'your-auth0-client-id'; // Replace with your Auth0 client ID
+                    const audience = ''; // Optional: your Auth0 API audience
+
+                    // Check if we have valid configuration
+                    if (domain === 'your-auth0-domain.auth0.com' || clientId === 'your-auth0-client-id') {
+                        throw new Error('Auth0 not configured. Please update the domain and clientId in login.html');
+                    }
 
                     this.auth0 = await createAuth0Client({
                         domain: domain,
@@ -274,7 +279,7 @@
                     console.log('Auth0 initialized successfully');
                 } catch (error) {
                     console.error('Auth0 initialization failed:', error);
-                    this.showError('Authentication service is not configured. Please contact an administrator.');
+                    this.showError(error.message || 'Authentication service is not configured. Please contact an administrator.');
                 }
             },
 

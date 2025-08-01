@@ -1,8 +1,9 @@
 [build]
 publish = "public"
+command = "./build.sh"
 
 [context.production]
-command = "echo 'Static site - no build required'"
+command = "./build.sh"
 
-# Auth0 configuration will be handled via extension
-# Environment variables will be set automatically by Auth0 extension
+# Environment variables for Auth0
+# These will be set in Netlify dashboard and injected at build time

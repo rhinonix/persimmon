@@ -19,11 +19,23 @@ const PersimmonAuth = {
   // Setup Auth0 client
   async setupAuth0() {
     try {
-      // Get Auth0 configuration from environment variables
-      // These will be set by the Auth0 Netlify extension
-      const domain = window.ENV?.AUTH0_DOMAIN || "your-auth0-domain.auth0.com";
-      const clientId = window.ENV?.AUTH0_CLIENT_ID || "your-auth0-client-id";
-      const audience = window.ENV?.AUTH0_AUDIENCE || "";
+      // Get Auth0 configuration from environment variables injected at build time
+      const domain = window.AUTH_CONFIG?.domain || "your-auth0-domain.auth0.com";
+      const clientId = window.AUTH_CONFIG?.clientId || "your-auth0-client-id";
+      const audience = window.AUTH_CONFIG?.audience || "";
+
+      // Check if we have valid configuration
+      if (
+        domain === "your-auth0-domain.auth0.com" ||
+        clientId === "your-auth0-client-id" ||
+        domain.includes('<!--') ||
+        clientId.includes('<!--')
+      ) {
+        console.warn(
+          "Auth0 not configured. Please set VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables in Netlify."
+        );
+        return;
+      }
 
       if (typeof createAuth0Client !== "undefined") {
         this.auth0 = await createAuth0Client({
