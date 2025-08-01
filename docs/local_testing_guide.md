@@ -5,6 +5,7 @@
 Since Netlify Identity requires a deployed site, you can't test the full authentication flow locally. However, you can test the styling and basic functionality:
 
 ### Option 1: Test Login Page Styling
+
 ```bash
 # Navigate to your project directory
 cd /Users/ryan/Projects/persimmon
@@ -18,8 +19,9 @@ npx serve public
 Then visit: `http://localhost:8000/auth/login.html`
 
 **Note**: Authentication won't work locally, but you can verify:
+
 - ✅ CSS loads correctly
-- ✅ Form renders properly  
+- ✅ Form renders properly
 - ✅ Responsive design works
 - ✅ Linear aesthetic matches your app
 
@@ -61,12 +63,14 @@ git push origin main
 ## Expected Behavior
 
 ### ✅ Working State
+
 - Login page loads with proper Linear styling
 - CSS variables (colors, fonts) applied correctly
 - Form inputs styled consistently
 - Responsive design on mobile
 
 ### ❌ Problem Indicators
+
 - Plain HTML styling (no CSS loaded)
 - Console errors about missing files
 - Broken layout or fonts

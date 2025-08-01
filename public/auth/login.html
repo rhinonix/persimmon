@@ -206,13 +206,6 @@
             
             <div id="error-container"></div>
             
-            <!-- Netlify Identity Widget will mount here -->
-            <div data-netlify-identity-menu></div>
-            
-            <div class="auth-divider">
-                <span>or continue with email</span>
-            </div>
-            
             <form class="auth-form" id="auth-form">
                 <div class="form-group">
                     <label class="form-label" for="email">Email address</label>
@@ -237,7 +230,7 @@
                 </div>
                 
                 <button type="submit" class="auth-button" id="submit-btn">
-                    Sign in
+                    Sign in with Auth0
                 </button>
             </form>
             
@@ -247,21 +240,42 @@
         </div>
     </div>
 
-    <!-- Netlify Identity Widget -->
-    <script type="text/javascript" src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <!-- Auth0 SDK -->
+    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
     
     <script>
-        // Initialize Netlify Identity
-        netlifyIdentity.init({
-            container: '[data-netlify-identity-menu]',
-            locale: 'en'
-        });
-
-        // Authentication state management
+        // Auth0 Authentication Manager
         const AuthManager = {
-            init() {
+            auth0: null,
+
+            async init() {
+                await this.setupAuth0();
                 this.setupEventListeners();
                 this.checkAuthState();
+            },
+
+            async setupAuth0() {
+                try {
+                    // Get Auth0 configuration from environment variables
+                    // These will be set by the Auth0 Netlify extension
+                    const domain = window.ENV?.AUTH0_DOMAIN || 'your-auth0-domain.auth0.com';
+                    const clientId = window.ENV?.AUTH0_CLIENT_ID || 'your-auth0-client-id';
+                    const audience = window.ENV?.AUTH0_AUDIENCE || '';
+
+                    this.auth0 = await createAuth0Client({
+                        domain: domain,
+                        clientId: clientId,
+                        authorizationParams: {
+                            redirect_uri: window.location.origin,
+                            audience: audience
+                        }
+                    });
+
+                    console.log('Auth0 initialized successfully');
+                } catch (error) {
+                    console.error('Auth0 initialization failed:', error);
+                    this.showError('Authentication service is not configured. Please contact an administrator.');
+                }
             },
 
             setupEventListeners() {
@@ -270,32 +284,15 @@
                     e.preventDefault();
                     this.handleLogin();
                 });
-
-                // Netlify Identity events
-                netlifyIdentity.on('init', user => {
-                    if (user) {
-                        this.redirectToApp();
-                    }
-                });
-
-                netlifyIdentity.on('login', user => {
-                    this.redirectToApp();
-                });
-
-                netlifyIdentity.on('error', err => {
-                    this.showError(err.message);
-                });
             },
 
             async handleLogin() {
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const submitBtn = document.getElementById('submit-btn');
-
-                if (!email || !password) {
-                    this.showError('Please enter both email and password');
+                if (!this.auth0) {
+                    this.showError('Authentication service is not available. Please contact support.');
                     return;
                 }
+
+                const submitBtn = document.getElementById('submit-btn');
 
                 // Show loading state
                 submitBtn.disabled = true;
@@ -307,20 +304,38 @@
                 `;
 
                 try {
-                    // Use Netlify Identity for authentication
-                    const user = await netlifyIdentity.login(email, password);
-                    this.redirectToApp();
+                    // Redirect to Auth0 Universal Login
+                    await this.auth0.loginWithRedirect({
+                        authorizationParams: {
+                            redirect_uri: window.location.origin
+                        }
+                    });
                 } catch (error) {
-                    this.showError(error.message || 'Login failed. Please check your credentials.');
+                    console.error('Login error:', error);
+                    this.showError(error.message || 'Login failed. Please try again.');
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = 'Sign in';
+                    submitBtn.innerHTML = 'Sign in with Auth0';
                 }
             },
 
-            checkAuthState() {
-                const user = netlifyIdentity.currentUser();
-                if (user) {
-                    this.redirectToApp();
+            async checkAuthState() {
+                if (!this.auth0) return;
+
+                try {
+                    // Check if we're returning from Auth0
+                    if (window.location.search.includes('code=') && window.location.search.includes('state=')) {
+                        await this.auth0.handleRedirectCallback();
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+
+                    // Check if user is authenticated
+                    const isAuthenticated = await this.auth0.isAuthenticated();
+                    if (isAuthenticated) {
+                        this.redirectToApp();
+                    }
+                } catch (error) {
+                    console.error('Auth state check failed:', error);
+                    this.showError('Authentication check failed. Please try logging in again.');
                 }
             },
 
@@ -332,10 +347,10 @@
                     </div>
                 `;
                 
-                // Auto-hide error after 5 seconds
+                // Auto-hide error after 10 seconds
                 setTimeout(() => {
                     errorContainer.innerHTML = '';
-                }, 5000);
+                }, 10000);
             },
 
             redirectToApp() {

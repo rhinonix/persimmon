@@ -5,6 +5,7 @@ This guide will help you set up simple user authentication for your Persimmon In
 ## Overview
 
 The authentication system provides:
+
 - **Invitation-only access** (perfect for you + 2 team members)
 - **Clean Linear aesthetic** matching your existing design
 - **Netlify Identity integration** (no external services needed)
@@ -16,6 +17,7 @@ The authentication system provides:
 ### 1. Deploy to Netlify
 
 1. **Connect your GitHub repository** to Netlify:
+
    - Go to [netlify.com](https://netlify.com)
    - Click "New site from Git"
    - Select your `persimmon` repository
@@ -40,6 +42,7 @@ The authentication system provides:
 In your Netlify Identity settings:
 
 1. **Registration preferences:**
+
    - ✅ Invite only
    - ✅ Email confirmation required
    - ✅ Enable password recovery
@@ -60,13 +63,17 @@ In your Netlify Identity settings:
 The authentication pages use your existing Linear design aesthetic, but you can customize further:
 
 #### Login Page Customization
+
 Edit `/public/auth/login.html` to modify:
+
 - Welcome message
 - Branding elements
 - Form styling
 
 #### Email Templates
+
 In Netlify Identity settings, you can customize:
+
 - Welcome email
 - Password recovery email
 - Email confirmation
@@ -74,18 +81,21 @@ In Netlify Identity settings, you can customize:
 ## How It Works
 
 ### Authentication Flow
+
 1. **Unauthenticated users** → Redirected to `/auth/login.html`
 2. **Users log in** → Redirected to main application
 3. **Sessions persist** across browser refreshes
 4. **Logout** → Returns to login page
 
 ### Security Features
+
 - **Edge Functions** check authentication on every request
-- **JWT tokens** manage user sessions securely  
+- **JWT tokens** manage user sessions securely
 - **Invite-only** prevents unauthorized registration
 - **Email verification** required for account activation
 
 ### User Experience
+
 - **Linear aesthetic** matches your existing design
 - **Responsive design** works on all devices
 - **Loading states** provide clear feedback
@@ -111,18 +121,22 @@ persimmon/
 ## User Management
 
 ### Adding New Users
+
 1. Go to Netlify Dashboard → Identity
 2. Click "Invite users"
 3. Enter email address
 4. User receives invitation email
 
 ### Removing Users
-1. Go to Netlify Dashboard → Identity  
+
+1. Go to Netlify Dashboard → Identity
 2. Find user in the list
 3. Click "..." → Delete user
 
 ### User Roles (Optional)
+
 You can assign roles for different access levels:
+
 - `admin` - Full access
 - `user` - Standard access
 - `viewer` - Read-only access
@@ -130,24 +144,28 @@ You can assign roles for different access levels:
 ## Troubleshooting
 
 ### CSS Not Loading (404 Error)
+
 1. **Check file paths** - Ensure `/assets/css/main.css` exists in your repository
 2. **Verify deployment** - Check that all files uploaded to Netlify correctly
 3. **Clear browser cache** - Hard refresh (Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows)
-4. **Check _redirects file** - Ensure `/assets/*` paths are allowed
+4. **Check \_redirects file** - Ensure `/assets/*` paths are allowed
 
 ### Users Can't Access the Site
+
 1. **Check Netlify Identity** is enabled
 2. **Verify user has been invited** and confirmed their account
 3. **Check browser cookies** aren't being blocked
 4. **Ensure HTTPS** is being used (required for Netlify Identity)
 
 ### Authentication Not Working
+
 1. **Check Edge Functions** are deployed correctly
 2. **Verify netlify.toml** configuration is valid
 3. **Clear browser cache** and try again
 4. **Check browser console** for JavaScript errors
 
 ### Email Issues
+
 1. **Verify site URL** in Identity settings
 2. **Check spam folders** for invitation emails
 3. **Ensure email templates** are properly configured
@@ -168,6 +186,7 @@ You can assign roles for different access levels:
 ## Support
 
 If you encounter issues:
+
 1. **Check Netlify docs:** [docs.netlify.com/identity](https://docs.netlify.com/identity)
 2. **Review Edge Functions:** [docs.netlify.com/edge-functions](https://docs.netlify.com/edge-functions)
 3. **Contact support:** Through Netlify dashboard

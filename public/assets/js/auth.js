@@ -1,125 +1,159 @@
 /**
- * Persimmon Authentication Module
- * Handles user authentication across the application
+ * Persimmon Authentication Module - Auth0 Integration
+ * Handles user authentication across the application using Auth0
  */
 
 const PersimmonAuth = {
-    // Current user state
-    currentUser: null,
-    isAuthenticated: false,
+  // Current user state
+  currentUser: null,
+  isAuthenticated: false,
+  auth0: null,
 
-    // Initialize authentication
-    init() {
-        this.setupNetlifyIdentity();
-        this.checkAuthState();
-        this.setupEventListeners();
-    },
+  // Initialize authentication
+  async init() {
+    await this.setupAuth0();
+    await this.checkAuthState();
+    this.setupEventListeners();
+  },
 
-    // Setup Netlify Identity widget
-    setupNetlifyIdentity() {
-        if (typeof netlifyIdentity !== 'undefined') {
-            netlifyIdentity.init();
-            
-            // Listen for authentication events
-            netlifyIdentity.on('init', user => {
-                this.handleAuthChange(user);
-            });
+  // Setup Auth0 client
+  async setupAuth0() {
+    try {
+      // Get Auth0 configuration from environment variables
+      // These will be set by the Auth0 Netlify extension
+      const domain = window.ENV?.AUTH0_DOMAIN || "your-auth0-domain.auth0.com";
+      const clientId = window.ENV?.AUTH0_CLIENT_ID || "your-auth0-client-id";
+      const audience = window.ENV?.AUTH0_AUDIENCE || "";
 
-            netlifyIdentity.on('login', user => {
-                this.handleAuthChange(user);
-            });
+      if (typeof createAuth0Client !== "undefined") {
+        this.auth0 = await createAuth0Client({
+          domain: domain,
+          clientId: clientId,
+          authorizationParams: {
+            redirect_uri: window.location.origin,
+            audience: audience,
+          },
+        });
 
-            netlifyIdentity.on('logout', () => {
-                this.handleAuthChange(null);
-            });
-        }
-    },
+        console.log("Auth0 initialized successfully");
+      } else {
+        console.warn("Auth0 SDK not loaded");
+      }
+    } catch (error) {
+      console.error("Failed to initialize Auth0:", error);
+    }
+  },
 
-    // Check current authentication state
-    checkAuthState() {
-        if (typeof netlifyIdentity !== 'undefined') {
-            const user = netlifyIdentity.currentUser();
-            this.handleAuthChange(user);
-        }
-    },
+  // Check current authentication state
+  async checkAuthState() {
+    if (!this.auth0) return;
 
-    // Handle authentication state changes
-    handleAuthChange(user) {
-        this.currentUser = user;
-        this.isAuthenticated = !!user;
-        
-        if (user) {
-            this.onLogin(user);
-        } else {
-            this.onLogout();
-        }
-    },
+    try {
+      // Handle Auth0 callback if present
+      if (
+        window.location.search.includes("code=") &&
+        window.location.search.includes("state=")
+      ) {
+        await this.auth0.handleRedirectCallback();
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+      }
 
-    // Called when user logs in
-    onLogin(user) {
-        console.log('User logged in:', user);
-        
-        // Store user info for the session
-        if (typeof Persimmon !== 'undefined' && Persimmon.storage) {
-            Persimmon.storage.set('currentUser', {
-                id: user.id,
-                email: user.email,
-                name: user.user_metadata?.full_name || user.email,
-                role: user.app_metadata?.roles?.[0] || 'user'
-            });
-        }
-        
-        // Update UI to show authenticated state
-        this.updateAuthUI(true);
-        
-        // Redirect away from auth pages if currently on one
-        if (window.location.pathname.includes('/auth/')) {
-            window.location.href = '/';
-        }
-    },
+      // Check if user is authenticated
+      const isAuthenticated = await this.auth0.isAuthenticated();
+      if (isAuthenticated) {
+        const user = await this.auth0.getUser();
+        this.handleAuthChange(user);
+      } else {
+        this.handleAuthChange(null);
+      }
+    } catch (error) {
+      console.error("Auth state check failed:", error);
+      this.handleAuthChange(null);
+    }
+  },
 
-    // Called when user logs out
-    onLogout() {
-        console.log('User logged out');
-        
-        // Clear user data
-        if (typeof Persimmon !== 'undefined' && Persimmon.storage) {
-            Persimmon.storage.remove('currentUser');
-        }
-        
-        // Update UI to show unauthenticated state
-        this.updateAuthUI(false);
-        
-        // Redirect to login
-        if (!window.location.pathname.includes('/auth/')) {
-            window.location.href = '/auth/login.html';
-        }
-    },
+  // Handle authentication state changes
+  handleAuthChange(user) {
+    this.currentUser = user;
+    this.isAuthenticated = !!user;
 
-    // Update UI based on authentication state
-    updateAuthUI(isAuthenticated) {
-        // Add user menu to header if authenticated
-        if (isAuthenticated) {
-            this.addUserMenu();
-        } else {
-            this.removeUserMenu();
-        }
-    },
+    if (user) {
+      this.onLogin(user);
+    } else {
+      this.onLogout();
+    }
+  },
 
-    // Add user menu to header
-    addUserMenu() {
-        const headerActions = document.querySelector('.header-actions');
-        if (headerActions && this.currentUser) {
-            // Remove existing user menu if present
-            const existingMenu = headerActions.querySelector('.user-menu');
-            if (existingMenu) {
-                existingMenu.remove();
-            }
+  // Called when user logs in
+  onLogin(user) {
+    console.log("User logged in:", user);
 
-            // Create user menu
-            const userMenu = document.createElement('div');
-            userMenu.className = 'user-menu';
-            userMenu.innerHTML = `
+    // Store user info for the session
+    if (typeof Persimmon !== "undefined" && Persimmon.storage) {
+      Persimmon.storage.set("currentUser", {
+        id: user.sub,
+        email: user.email,
+        name: user.name || user.email,
+        picture: user.picture,
+        roles: user["https://persimmon.app/roles"] || ["user"], // Custom claim for roles
+      });
+    }
+
+    // Update UI to show authenticated state
+    this.updateAuthUI(true);
+
+    // Redirect away from auth pages if currently on one
+    if (window.location.pathname.includes("/auth/")) {
+      window.location.href = "/";
+    }
+  },
+
+  // Called when user logs out
+  onLogout() {
+    console.log("User logged out");
+
+    // Clear user data
+    if (typeof Persimmon !== "undefined" && Persimmon.storage) {
+      Persimmon.storage.remove("currentUser");
+    }
+
+    // Update UI to show unauthenticated state
+    this.updateAuthUI(false);
+
+    // Redirect to login
+    if (!window.location.pathname.includes("/auth/")) {
+      window.location.href = "/auth/login.html";
+    }
+  },
+
+  // Update UI based on authentication state
+  updateAuthUI(isAuthenticated) {
+    // Add user menu to header if authenticated
+    if (isAuthenticated) {
+      this.addUserMenu();
+    } else {
+      this.removeUserMenu();
+    }
+  },
+
+  // Add user menu to header
+  addUserMenu() {
+    const headerActions = document.querySelector(".header-actions");
+    if (headerActions && this.currentUser) {
+      // Remove existing user menu if present
+      const existingMenu = headerActions.querySelector(".user-menu");
+      if (existingMenu) {
+        existingMenu.remove();
+      }
+
+      // Create user menu
+      const userMenu = document.createElement("div");
+      userMenu.className = "user-menu";
+      userMenu.innerHTML = `
                 <div class="user-menu-trigger">
                     <div class="user-avatar">
                         ${this.getUserInitials()}
@@ -145,33 +179,33 @@ const PersimmonAuth = {
                 </div>
             `;
 
-            // Add styles for user menu
-            this.addUserMenuStyles();
+      // Add styles for user menu
+      this.addUserMenuStyles();
 
-            // Add click handler for dropdown toggle
-            const trigger = userMenu.querySelector('.user-menu-trigger');
-            trigger.addEventListener('click', () => {
-                userMenu.classList.toggle('active');
-            });
+      // Add click handler for dropdown toggle
+      const trigger = userMenu.querySelector(".user-menu-trigger");
+      trigger.addEventListener("click", () => {
+        userMenu.classList.toggle("active");
+      });
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!userMenu.contains(e.target)) {
-                    userMenu.classList.remove('active');
-                }
-            });
-
-            headerActions.appendChild(userMenu);
+      // Close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!userMenu.contains(e.target)) {
+          userMenu.classList.remove("active");
         }
-    },
+      });
 
-    // Add styles for user menu
-    addUserMenuStyles() {
-        if (document.getElementById('user-menu-styles')) return;
+      headerActions.appendChild(userMenu);
+    }
+  },
 
-        const styles = document.createElement('style');
-        styles.id = 'user-menu-styles';
-        styles.textContent = `
+  // Add styles for user menu
+  addUserMenuStyles() {
+    if (document.getElementById("user-menu-styles")) return;
+
+    const styles = document.createElement("style");
+    styles.id = "user-menu-styles";
+    styles.textContent = `
             .user-menu {
                 position: relative;
             }
@@ -270,98 +304,128 @@ const PersimmonAuth = {
                 color: var(--text-secondary);
             }
         `;
-        document.head.appendChild(styles);
-    },
+    document.head.appendChild(styles);
+  },
 
-    // Remove user menu from header
-    removeUserMenu() {
-        const userMenu = document.querySelector('.user-menu');
-        if (userMenu) {
-            userMenu.remove();
-        }
-    },
-
-    // Get user initials for avatar
-    getUserInitials() {
-        if (!this.currentUser) return '?';
-        
-        const name = this.currentUser.user_metadata?.full_name || this.currentUser.email;
-        return name.split(' ').map(part => part[0]).join('').toUpperCase().slice(0, 2);
-    },
-
-    // Get display name for user
-    getUserDisplayName() {
-        if (!this.currentUser) return 'User';
-        
-        return this.currentUser.user_metadata?.full_name || 
-               this.currentUser.email.split('@')[0];
-    },
-
-    // Show user profile modal
-    showUserProfile() {
-        alert(`User Profile:\n\nEmail: ${this.currentUser.email}\nRole: ${this.currentUser.app_metadata?.roles?.[0] || 'user'}\nMember since: ${new Date(this.currentUser.created_at).toLocaleDateString()}`);
-    },
-
-    // Setup additional event listeners
-    setupEventListeners() {
-        // Check for authentication status changes periodically
-        setInterval(() => {
-            if (typeof netlifyIdentity !== 'undefined') {
-                const user = netlifyIdentity.currentUser();
-                if ((!!user) !== this.isAuthenticated) {
-                    this.handleAuthChange(user);
-                }
-            }
-        }, 5000);
-    },
-
-    // Manual logout function
-    logout() {
-        if (typeof netlifyIdentity !== 'undefined') {
-            netlifyIdentity.logout();
-        }
-    },
-
-    // Check if user has specific role
-    hasRole(role) {
-        if (!this.currentUser) return false;
-        const userRoles = this.currentUser.app_metadata?.roles || [];
-        return userRoles.includes(role);
-    },
-
-    // Get current user data
-    getCurrentUser() {
-        return this.currentUser;
-    },
-
-    // Check if user is authenticated
-    isUserAuthenticated() {
-        return this.isAuthenticated;
+  // Remove user menu from header
+  removeUserMenu() {
+    const userMenu = document.querySelector(".user-menu");
+    if (userMenu) {
+      userMenu.remove();
     }
+  },
+
+  // Get user initials for avatar
+  getUserInitials() {
+    if (!this.currentUser) return "?";
+
+    const name = this.currentUser.name || this.currentUser.email;
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  },
+
+  // Get display name for user
+  getUserDisplayName() {
+    if (!this.currentUser) return "User";
+
+    return this.currentUser.name || this.currentUser.email.split("@")[0];
+  },
+
+  // Show user profile modal
+  showUserProfile() {
+    const roles = this.currentUser["https://persimmon.app/roles"] || ["user"];
+    alert(
+      `User Profile:\n\nName: ${this.currentUser.name || "Not set"}\nEmail: ${
+        this.currentUser.email
+      }\nRoles: ${roles.join(", ")}\nUser ID: ${this.currentUser.sub}`
+    );
+  },
+
+  // Setup additional event listeners
+  setupEventListeners() {
+    // Check for authentication status changes periodically
+    setInterval(async () => {
+      if (this.auth0) {
+        try {
+          const isAuthenticated = await this.auth0.isAuthenticated();
+          if (isAuthenticated !== this.isAuthenticated) {
+            if (isAuthenticated) {
+              const user = await this.auth0.getUser();
+              this.handleAuthChange(user);
+            } else {
+              this.handleAuthChange(null);
+            }
+          }
+        } catch (error) {
+          console.error("Auth status check failed:", error);
+        }
+      }
+    }, 5000);
+  },
+
+  // Manual logout function
+  async logout() {
+    if (this.auth0) {
+      try {
+        await this.auth0.logout({
+          logoutParams: {
+            returnTo: window.location.origin + "/auth/login.html",
+          },
+        });
+      } catch (error) {
+        console.error("Logout failed:", error);
+        // Fallback: clear local state and redirect
+        this.handleAuthChange(null);
+        window.location.href = "/auth/login.html";
+      }
+    }
+  },
+
+  // Check if user has specific role
+  hasRole(role) {
+    if (!this.currentUser) return false;
+    const userRoles = this.currentUser["https://persimmon.app/roles"] || [];
+    return userRoles.includes(role);
+  },
+
+  // Get current user data
+  getCurrentUser() {
+    return this.currentUser;
+  },
+
+  // Check if user is authenticated
+  isUserAuthenticated() {
+    return this.isAuthenticated;
+  },
 };
 
 // Auto-initialize if in browser environment
-if (typeof window !== 'undefined') {
-    // Wait for DOM and potential Netlify Identity script to load
-    document.addEventListener('DOMContentLoaded', () => {
-        // Add Netlify Identity script if not present
-        if (!document.querySelector('script[src*="netlify-identity-widget"]')) {
-            const script = document.createElement('script');
-            script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-            script.onload = () => {
-                PersimmonAuth.init();
-            };
-            document.head.appendChild(script);
-        } else {
-            PersimmonAuth.init();
-        }
-    });
+if (typeof window !== "undefined") {
+  // Wait for DOM and potential Auth0 script to load
+  document.addEventListener("DOMContentLoaded", () => {
+    // Add Auth0 script if not present
+    if (!document.querySelector('script[src*="auth0-spa-js"]')) {
+      const script = document.createElement("script");
+      script.src =
+        "https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js";
+      script.onload = () => {
+        PersimmonAuth.init();
+      };
+      document.head.appendChild(script);
+    } else {
+      PersimmonAuth.init();
+    }
+  });
 
-    // Make available globally
-    window.PersimmonAuth = PersimmonAuth;
+  // Make available globally
+  window.PersimmonAuth = PersimmonAuth;
 }
 
 // Export for ES6 modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = PersimmonAuth;
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = PersimmonAuth;
 }
