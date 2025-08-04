@@ -29,7 +29,7 @@ const PersimmonAuth = {
       if (typeof createAuth0Client !== "undefined") {
         this.auth0 = await createAuth0Client({
           domain: domain,
-          client_id: clientId,
+          clientId: clientId,
           authorizationParams: {
             redirect_uri: window.location.origin,
             audience: audience,
