@@ -26,21 +26,6 @@ const PersimmonAuth = {
       const audience = "";
 
       // Check if we have valid configuration
-      if (
-        domain === "your-auth0-domain.auth0.com" ||
-        clientId === "your-auth0-client-id"
-      ) {
-        console.warn(
-          "Auth0 not configured. Please update the domain and clientId in auth.js"
-        );
-        // On the login page, we can show a more prominent error.
-        if (document.getElementById("config-notice")) {
-          document.getElementById("config-notice").style.display = "block";
-          document.getElementById("login-button").disabled = true;
-        }
-        return;
-      }
-
       if (typeof createAuth0Client !== "undefined") {
         this.auth0 = await createAuth0Client({
           domain: domain,
