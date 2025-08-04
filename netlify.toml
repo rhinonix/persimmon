@@ -1,11 +1,14 @@
+# Base build settings
 [build]
 publish = "public"
+command = "echo 'Static site - no build required'"
 
+# Production-specific settings
 [context.production]
 command = "echo 'Static site - no build required'"
 
-# Auth0 client credentials are public and safe to expose in client-side code.
-# We are telling Netlify's secret scanner to ignore these specific public keys,
-# as recommended by Auth0 and Netlify for this type of application.
-[build.environment]
+# Environment settings for the production context
+[context.production.environment]
+# Tell Netlify's secret scanner to ignore these public keys.
+# This is the recommended approach for Auth0 SPAs.
 SECRETS_SCAN_OMIT_KEYS = ["AUTH0_CLIENT_ID", "AUTH0_DOMAIN"]
