@@ -2,9 +2,3 @@
 [build]
 publish = "public"
 command = "echo 'Static site - no build required'"
-
-# Environment settings for all contexts.
-# This tells Netlify's secret scanner to ignore these public keys,
-# which is the recommended approach for Auth0 SPAs.
-[build.environment]
-SECRETS_SCAN_OMIT_KEYS = ["AUTH0_CLIENT_ID", "AUTH0_DOMAIN"]
