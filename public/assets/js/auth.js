@@ -22,7 +22,7 @@ const PersimmonAuth = {
       // Auth0 configuration - these values are public and safe to expose
       // This is the single source of truth for the entire application.
       const domain = "dev-bqb1oc1bvin0hma7.eu.auth0.com";
-      const clientId = "zXMv2QcGwi2Dyik2UvWfOMkQzXoto3im";
+      const clientId = "qbW7YQYKScHKSjqUy7UmnyH78rUlm6C0";
       const audience = "";
 
       // Check if we have valid configuration
