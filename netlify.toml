@@ -6,9 +6,5 @@ command = "echo 'Static site - no build required'"
 # Production-specific settings
 [context.production]
 command = "echo 'Static site - no build required'"
-
 # Environment settings for the production context
-[context.production.environment]
-# Tell Netlify's secret scanner to ignore these public keys.
-# This is the recommended approach for Auth0 SPAs.
-SECRETS_SCAN_OMIT_KEYS = ["AUTH0_CLIENT_ID", "AUTH0_DOMAIN"]
+environment = { SECRETS_SCAN_OMIT_KEYS = ["AUTH0_CLIENT_ID", "AUTH0_DOMAIN"] }
