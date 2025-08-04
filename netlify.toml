@@ -3,6 +3,9 @@
 publish = "public"
 command = "echo 'Static site - no build required'"
 
+[build.environment]
+NETLIFY_EXCLUDE_SCANNING = "true"
+
 # Production-specific settings
 [context.production]
 command = "echo 'Static site - no build required'"
