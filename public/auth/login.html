@@ -152,8 +152,8 @@
             
             <div id="error-message" class="error-message"></div>
             
-            <button id="login-button" class="auth-button" onclick="handleLogin()">
-                Continue with Auth0
+            <button id="login-button" class="auth-button" onclick="handleLogin()" disabled>
+                Initializing...
             </button>
             
             <div class="auth-divider">
@@ -167,7 +167,7 @@
     </div>
 
     <!-- Auth0 SPA SDK -->
-    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
+    <script src="https://cdn.auth0.com/js/auth0-spa-js/2.3.0/auth0-spa-js.production.js"></script>
     
     <!-- Persimmon Auth Module -->
     <script src="/assets/js/auth.js"></script>
@@ -178,47 +178,22 @@
         
         // Handle login button click
         function handleLogin() {
-            if (PersimmonAuth && PersimmonAuth.auth0) {
-                const button = document.getElementById('login-button');
-                const originalText = button.textContent;
-                button.textContent = 'Signing in...';
-                button.disabled = true;
+            const button = document.getElementById('login-button');
+            const originalText = button.textContent;
+            button.textContent = 'Redirecting...';
+            button.disabled = true;
 
-                PersimmonAuth.auth0.loginWithRedirect({
-                    authorizationParams: {
-                        redirect_uri: window.location.origin
-                    }
-                }).catch(error => {
-                    console.error('Login failed:', error);
-                    showError('Login failed: ' + error.message);
-                    button.textContent = originalText;
-                    button.disabled = false;
-                });
-            } else {
-                showError('Authentication service is not available.');
-            }
-        }
-        
-        // Show error message
-        function showError(message) {
-            const errorElement = document.getElementById('error-message');
-            errorElement.textContent = message;
-            errorElement.style.display = 'block';
+            PersimmonAuth.login().catch(error => {
+                console.error('Login failed:', error);
+                // The error is already shown by the login function, 
+                // but we can restore the button state here.
+                button.textContent = originalText;
+                button.disabled = false;
+            });
         }
 
-        // The global PersimmonAuth object will handle initialization and redirects.
-        // We just need to make sure the UI elements are interactive.
-        document.addEventListener('DOMContentLoaded', () => {
-            // The PersimmonAuth script handles the rest.
-            // We can add a small check here to ensure the config notice is hidden
-            // if the auth service initializes correctly.
-            if (PersimmonAuth && PersimmonAuth.auth0) {
-                const configNotice = document.getElementById('config-notice');
-                if (configNotice) {
-                    configNotice.style.display = 'none';
-                }
-            }
-        });
+        // The global PersimmonAuth object handles all initialization,
+        // redirects, and UI updates for the button state.
     </script>
 </body>
 </html>

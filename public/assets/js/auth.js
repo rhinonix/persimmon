@@ -43,6 +43,8 @@ const PersimmonAuth = {
     } catch (error) {
       console.error("Failed to initialize Auth0:", error);
     }
+    // Always update the UI after attempting to set up Auth0
+    this.updateUI();
   },
 
   // Check current authentication state
@@ -77,6 +79,33 @@ const PersimmonAuth = {
     }
   },
 
+  // Update UI based on authentication state
+  updateUI() {
+    const loginButton = document.getElementById("login-button");
+    const configNotice = document.getElementById("config-notice");
+    const errorMessage = document.getElementById("error-message");
+
+    // Hide all messages by default
+    if (configNotice) configNotice.style.display = "none";
+    if (errorMessage) errorMessage.style.display = "none";
+
+    if (!this.auth0) {
+      if (loginButton) {
+        loginButton.textContent = "Setup Required";
+        loginButton.disabled = true;
+      }
+      if (configNotice) {
+        configNotice.style.display = "block";
+      }
+      return;
+    }
+
+    if (loginButton) {
+      loginButton.disabled = false;
+      loginButton.textContent = "Continue with Auth0";
+    }
+  },
+
   // Handle authentication state changes
   handleAuthChange(user) {
     this.currentUser = user;
@@ -87,6 +116,7 @@ const PersimmonAuth = {
     } else {
       this.onLogout();
     }
+    this.updateUI();
   },
 
   // Called when user logs in
@@ -100,309 +130,70 @@ const PersimmonAuth = {
         email: user.email,
         name: user.name || user.email,
         picture: user.picture,
-        roles: user["https://persimmon.app/roles"] || ["user"], // Custom claim for roles
       });
     }
 
-    // Update UI to show authenticated state
-    this.updateAuthUI(true);
-
-    // Redirect away from auth pages if currently on one
-    if (window.location.pathname.includes("/auth/")) {
-      window.location.href = "/";
+    // Redirect to the main app page if on the login page
+    if (window.location.pathname.includes("login.html")) {
+      window.location.pathname = "/";
     }
   },
 
   // Called when user logs out
   onLogout() {
     console.log("User logged out");
-
-    // Clear user data
-    if (typeof Persimmon !== "undefined" && Persimmon.storage) {
-      Persimmon.storage.remove("currentUser");
-    }
-
-    // Update UI to show unauthenticated state
-    this.updateAuthUI(false);
-
-    // Redirect to login
-    if (!window.location.pathname.includes("/auth/")) {
-      window.location.href = "/auth/login.html";
+    // Redirect to login page if not already there
+    if (!window.location.pathname.includes("login.html")) {
+      window.location.pathname = "/auth/login.html";
     }
   },
 
-  // Update UI based on authentication state
-  updateAuthUI(isAuthenticated) {
-    // Add user menu to header if authenticated
-    if (isAuthenticated) {
-      this.addUserMenu();
-    } else {
-      this.removeUserMenu();
-    }
-  },
-
-  // Add user menu to header
-  addUserMenu() {
-    const headerActions = document.querySelector(".header-actions");
-    if (headerActions && this.currentUser) {
-      // Remove existing user menu if present
-      const existingMenu = headerActions.querySelector(".user-menu");
-      if (existingMenu) {
-        existingMenu.remove();
+  // Login with redirect
+  async login() {
+    if (!this.auth0) {
+      console.error("Auth0 client not initialized.");
+      const errorMessage = document.getElementById("error-message");
+      if (errorMessage) {
+        errorMessage.textContent =
+          "Authentication service is not available. Please try again later.";
+        errorMessage.style.display = "block";
       }
-
-      // Create user menu
-      const userMenu = document.createElement("div");
-      userMenu.className = "user-menu";
-      userMenu.innerHTML = `
-                <div class="user-menu-trigger">
-                    <div class="user-avatar">
-                        ${this.getUserInitials()}
-                    </div>
-                    <span class="user-name">${this.getUserDisplayName()}</span>
-                    <svg class="user-menu-arrow" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 10l5 5 5-5z"/>
-                    </svg>
-                </div>
-                <div class="user-menu-dropdown">
-                    <div class="user-menu-item" onclick="PersimmonAuth.showUserProfile()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>
-                        Profile
-                    </div>
-                    <div class="user-menu-item" onclick="PersimmonAuth.logout()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-                        </svg>
-                        Sign out
-                    </div>
-                </div>
-            `;
-
-      // Add styles for user menu
-      this.addUserMenuStyles();
-
-      // Add click handler for dropdown toggle
-      const trigger = userMenu.querySelector(".user-menu-trigger");
-      trigger.addEventListener("click", () => {
-        userMenu.classList.toggle("active");
-      });
-
-      // Close dropdown when clicking outside
-      document.addEventListener("click", (e) => {
-        if (!userMenu.contains(e.target)) {
-          userMenu.classList.remove("active");
-        }
-      });
-
-      headerActions.appendChild(userMenu);
+      return;
     }
+    await this.auth0.loginWithRedirect({
+      authorizationParams: {
+        redirect_uri: window.location.origin,
+      },
+    });
   },
 
-  // Add styles for user menu
-  addUserMenuStyles() {
-    if (document.getElementById("user-menu-styles")) return;
-
-    const styles = document.createElement("style");
-    styles.id = "user-menu-styles";
-    styles.textContent = `
-            .user-menu {
-                position: relative;
-            }
-            
-            .user-menu-trigger {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                border: 1px solid var(--border-medium);
-                border-radius: 6px;
-                background: var(--bg-white);
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-            
-            .user-menu-trigger:hover {
-                background: var(--bg-secondary);
-            }
-            
-            .user-avatar {
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                background: var(--persimmon-primary);
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 10px;
-                font-weight: 600;
-            }
-            
-            .user-name {
-                font-size: 12px;
-                font-weight: 500;
-                color: var(--text-primary);
-            }
-            
-            .user-menu-arrow {
-                color: var(--text-secondary);
-                transition: transform 0.2s ease;
-            }
-            
-            .user-menu.active .user-menu-arrow {
-                transform: rotate(180deg);
-            }
-            
-            .user-menu-dropdown {
-                position: absolute;
-                top: 100%;
-                right: 0;
-                margin-top: 4px;
-                background: var(--bg-white);
-                border: 1px solid var(--border-medium);
-                border-radius: 6px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                min-width: 160px;
-                opacity: 0;
-                visibility: hidden;
-                transform: translateY(-8px);
-                transition: all 0.2s ease;
-                z-index: 1000;
-            }
-            
-            .user-menu.active .user-menu-dropdown {
-                opacity: 1;
-                visibility: visible;
-                transform: translateY(0);
-            }
-            
-            .user-menu-item {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 12px 16px;
-                cursor: pointer;
-                transition: background 0.2s ease;
-                font-size: 14px;
-                color: var(--text-primary);
-            }
-            
-            .user-menu-item:hover {
-                background: var(--bg-secondary);
-            }
-            
-            .user-menu-item:first-child {
-                border-radius: 6px 6px 0 0;
-            }
-            
-            .user-menu-item:last-child {
-                border-radius: 0 0 6px 6px;
-            }
-            
-            .user-menu-item svg {
-                color: var(--text-secondary);
-            }
-        `;
-    document.head.appendChild(styles);
-  },
-
-  // Remove user menu from header
-  removeUserMenu() {
-    const userMenu = document.querySelector(".user-menu");
-    if (userMenu) {
-      userMenu.remove();
-    }
-  },
-
-  // Get user initials for avatar
-  getUserInitials() {
-    if (!this.currentUser) return "?";
-
-    const name = this.currentUser.name || this.currentUser.email;
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  },
-
-  // Get display name for user
-  getUserDisplayName() {
-    if (!this.currentUser) return "User";
-
-    return this.currentUser.name || this.currentUser.email.split("@")[0];
-  },
-
-  // Show user profile modal
-  showUserProfile() {
-    const roles = this.currentUser["https://persimmon.app/roles"] || ["user"];
-    alert(
-      `User Profile:\n\nName: ${this.currentUser.name || "Not set"}\nEmail: ${
-        this.currentUser.email
-      }\nRoles: ${roles.join(", ")}\nUser ID: ${this.currentUser.sub}`
-    );
-  },
-
-  // Setup additional event listeners
-  setupEventListeners() {
-    // Check for authentication status changes periodically
-    setInterval(async () => {
-      if (this.auth0) {
-        try {
-          const isAuthenticated = await this.auth0.isAuthenticated();
-          if (isAuthenticated !== this.isAuthenticated) {
-            if (isAuthenticated) {
-              const user = await this.auth0.getUser();
-              this.handleAuthChange(user);
-            } else {
-              this.handleAuthChange(null);
-            }
-          }
-        } catch (error) {
-          console.error("Auth status check failed:", error);
-        }
-      }
-    }, 5000);
-  },
-
-  // Manual logout function
+  // Logout
   async logout() {
-    if (this.auth0) {
-      try {
-        await this.auth0.logout({
-          logoutParams: {
-            returnTo: window.location.origin + "/auth/login.html",
-          },
-        });
-      } catch (error) {
-        console.error("Logout failed:", error);
-        // Fallback: clear local state and redirect
-        this.handleAuthChange(null);
-        window.location.href = "/auth/login.html";
-      }
-    }
+    if (!this.auth0) return;
+    await this.auth0.logout({
+      logoutParams: {
+        returnTo: window.origin + "/auth/login.html",
+      },
+    });
   },
 
-  // Check if user has specific role
-  hasRole(role) {
-    if (!this.currentUser) return false;
-    const userRoles = this.currentUser["https://persimmon.app/roles"] || [];
-    return userRoles.includes(role);
+  // Get user profile
+  async getProfile() {
+    if (!this.auth0 || !this.isAuthenticated) return null;
+    return await this.auth0.getUser();
   },
 
-  // Get current user data
-  getCurrentUser() {
-    return this.currentUser;
-  },
-
-  // Check if user is authenticated
-  isUserAuthenticated() {
-    return this.isAuthenticated;
+  // Setup event listeners
+  setupEventListeners() {
+    // This event listener ensures the UI is updated only after the DOM is fully loaded.
+    document.addEventListener("DOMContentLoaded", () => {
+      this.updateUI();
+    });
   },
 };
+
+// Initialize authentication when the script loads
+PersimmonAuth.init();
 
 // Auto-initialize if in browser environment
 if (typeof window !== "undefined") {
