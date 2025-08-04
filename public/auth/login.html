@@ -146,8 +146,8 @@
                 <p class="auth-subtitle">Sign in to access Persimmon Intelligence</p>
             </div>
             
-            <div id="config-notice" class="config-notice">
-                <strong>Setup Required:</strong> Please update the Auth0 configuration in this file with your actual domain and client ID from your Auth0 dashboard.
+            <div id="config-notice" class="config-notice" style="display: none;">
+                <strong>Configuration Error:</strong> The authentication service is not correctly configured. Please contact an administrator.
             </div>
             
             <div id="error-message" class="error-message"></div>
@@ -209,8 +209,15 @@
         // The global PersimmonAuth object will handle initialization and redirects.
         // We just need to make sure the UI elements are interactive.
         document.addEventListener('DOMContentLoaded', () => {
-            // The login button is already configured with onclick.
             // The PersimmonAuth script handles the rest.
+            // We can add a small check here to ensure the config notice is hidden
+            // if the auth service initializes correctly.
+            if (PersimmonAuth && PersimmonAuth.auth0) {
+                const configNotice = document.getElementById('config-notice');
+                if (configNotice) {
+                    configNotice.style.display = 'none';
+                }
+            }
         });
     </script>
 </body>
