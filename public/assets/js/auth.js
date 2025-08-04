@@ -20,28 +20,24 @@ const PersimmonAuth = {
   async setupAuth0() {
     try {
       // Auth0 configuration - these values are public and safe to expose
-      // You can either set them directly here or use environment variables
-      let domain = "your-auth0-domain.auth0.com";
-      let clientId = "your-auth0-client-id";
-      let audience = "";
-
-      // Check if environment config is available (from build process)
-      if (window.AUTH_CONFIG) {
-        domain = window.AUTH_CONFIG.domain;
-        clientId = window.AUTH_CONFIG.clientId;
-        audience = window.AUTH_CONFIG.audience || "";
-      }
+      // This is the single source of truth for the entire application.
+      const domain = "dev-bqb1oc1bvin0hma7.eu.auth0.com";
+      const clientId = "zXMv2QcGwi2Dyik2UvWfOMkQzXoto3im";
+      const audience = "";
 
       // Check if we have valid configuration
       if (
         domain === "your-auth0-domain.auth0.com" ||
-        clientId === "your-auth0-client-id" ||
-        domain.includes("<!--") ||
-        clientId.includes("<!--")
+        clientId === "your-auth0-client-id"
       ) {
         console.warn(
-          "Auth0 not configured. Please update the domain and clientId values."
+          "Auth0 not configured. Please update the domain and clientId in auth.js"
         );
+        // On the login page, we can show a more prominent error.
+        if (document.getElementById("config-notice")) {
+          document.getElementById("config-notice").style.display = "block";
+          document.getElementById("login-button").disabled = true;
+        }
         return;
       }
 
