@@ -33,9 +33,14 @@ const PersimmonAuth = {
     ) {
       this.supabase = supabase.createClient(
         this.SUPABASE_URL,
-        this.SUPABASE_ANON_KEY
+        this.SUPABASE_ANON_KEY,
+        {
+          auth: {
+            storage: cookieStorageAdapter,
+          },
+        }
       );
-      console.log("Supabase client initialized.");
+      console.log("Supabase client initialized with cookie storage.");
     } else {
       console.error(
         "Supabase SDK not loaded. Make sure to include it in your HTML."
@@ -67,7 +72,6 @@ const PersimmonAuth = {
       return { user: null, error };
     }
     console.log("User signed in:", data.user);
-    window.location.href = '/';
     return { user: data.user, error: null };
   },
 
@@ -188,6 +192,29 @@ const PersimmonAuth = {
         loginButton.textContent = "Setup Required";
       }
     });
+  },
+};
+
+// Custom storage adapter to use cookies
+const cookieStorageAdapter = {
+  getItem: (key) => {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      let cookie = cookies[i].trim();
+      if (cookie.startsWith(key + "=")) {
+        return cookie.substring(key.length + 1);
+      }
+    }
+    return null;
+  },
+  setItem: (key, value) => {
+    // Set cookie to expire in a year, matching Supabase's default.
+    // The 'path=/' ensures the cookie is available across the entire site.
+    document.cookie = `${key}=${value}; path=/; max-age=31536000; secure; samesite=lax`;
+  },
+  removeItem: (key) => {
+    // To remove a cookie, set its expiration date to the past.
+    document.cookie = `${key}=; path=/; max-age=0; secure; samesite=lax`;
   },
 };
 

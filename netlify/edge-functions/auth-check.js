@@ -36,7 +36,31 @@ export default async (request, context) => {
   }
 
   // Get the Supabase auth token from the cookies.
-  const supabaseToken = context.cookies.get("sb-access-token");
+  // The cookie name is dynamic, so we need to find it.
+  const getSupabaseToken = () => {
+    const cookies = context.cookies.getAll();
+    if (!cookies || cookies.length === 0) {
+      return null;
+    }
+
+    const authCookie = cookies.find(cookie => 
+      cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
+    );
+
+    if (!authCookie) {
+      return null;
+    }
+
+    try {
+      const session = JSON.parse(authCookie.value);
+      return session.access_token || null;
+    } catch (e) {
+      console.error("Error parsing auth cookie:", e);
+      return null;
+    }
+  };
+
+  const supabaseToken = getSupabaseToken();
 
   // If there's no token, the user is not logged in. Redirect to the login page.
   if (!supabaseToken) {
