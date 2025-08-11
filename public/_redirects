@@ -1,9 +1,0 @@
-# Allow access to auth pages and assets
-/auth/* /auth/:splat 200
-/assets/* /assets/:splat 200
-
-# Redirect all other pages to login for non-authenticated users
-/* /auth/login.html 302! Role=!user
-
-# Allow authenticated users to access everything
-/* /:splat 200 Role=user

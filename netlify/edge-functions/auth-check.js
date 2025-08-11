@@ -12,22 +12,17 @@ export default async (request, context) => {
     return await context.next();
   }
 
-  // Check if user is authenticated via Auth0
-  const authHeader = request.headers.get("authorization") || "";
+  // Check if user is authenticated via Supabase
   const cookies = request.headers.get("cookie") || "";
 
-  // Look for Auth0 session cookies or JWT token
-  const hasAuth0Session =
-    cookies.includes("auth0") || authHeader.includes("Bearer");
+  // Look for the Supabase auth token cookie.
+  // The cookie name is typically `sb-<project-ref>-auth-token`.
+  // A simple check for a cookie starting with "sb-" is sufficient here.
+  const hasSupabaseSession = cookies.includes("sb-");
 
-  if (!hasAuth0Session) {
+  if (!hasSupabaseSession) {
     // Redirect to login if not authenticated
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: "/auth/login.html",
-      },
-    });
+    return Response.redirect(new URL("/auth/login.html", request.url));
   }
 
   // User appears to be authenticated, continue to the requested page
