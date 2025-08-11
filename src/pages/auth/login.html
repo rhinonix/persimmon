@@ -222,8 +222,10 @@
                     errorMessageDiv.style.display = 'block';
                     loginButton.disabled = false;
                     loginButton.textContent = 'Sign In';
+                } else {
+                    // On success, redirect to the root page.
+                    window.location.href = '/';
                 }
-                // On success, the onAuthStateChange handler in auth.js will redirect.
             });
         });
     </script>
