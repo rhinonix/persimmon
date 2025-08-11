@@ -1,4 +1,8 @@
 # Base build settings for all contexts.
 [build]
+command = "./build.sh"
 publish = "public"
-command = "echo 'Static site - no build required'"
+
+[[edge_functions]]
+path = "/*"
+function = "auth-check"

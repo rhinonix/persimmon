@@ -8,24 +8,21 @@ const PersimmonAuth = {
   supabase: null,
 
   // --- Configuration ---
-  // IMPORTANT: Replace with your actual Supabase URL and Anon Key.
-  // It's recommended to use environment variables for these in a real project.
-  SUPABASE_URL: "https://gkckzdqnplvsucqkauvl.supabase.co",
-  SUPABASE_ANON_KEY:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2t6ZHFucGx2c3VjcWthdXZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MTAwNjgsImV4cCI6MjA3MDQ4NjA2OH0.9VLOlxvJmoUFFTsGrqX2b8NFxgrtKXUDuMra6UEK-xc",
+  // These values will be replaced by the build script.
+  SUPABASE_URL: "__SUPABASE_URL__",
+  SUPABASE_ANON_KEY: "__SUPABASE_ANON_KEY__",
 
   // --- Initialization ---
   init() {
     // Check if Supabase credentials are set
     if (
-      this.SUPABASE_URL === "https://gkckzdqnplvsucqkauvl.supabase.co" ||
-      this.SUPABASE_ANON_KEY ===
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2t6ZHFucGx2c3VjcWthdXZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MTAwNjgsImV4cCI6MjA3MDQ4NjA2OH0.9VLOlxvJmoUFFTsGrqX2b8NFxgrtKXUDuMra6UEK-xc"
+      this.SUPABASE_URL.startsWith("__") ||
+      this.SUPABASE_ANON_KEY.startsWith("__")
     ) {
-      console.warn(
-        "Supabase credentials are not configured in auth.js. Please update them."
+      console.error(
+        "Supabase credentials are not configured. This is a build issue."
       );
-      this.showConfigWarning();
+      this.showConfigWarning("Build error: Supabase credentials not found.");
       return;
     }
 
@@ -48,6 +45,7 @@ const PersimmonAuth = {
     }
 
     this.handleAuthStateChange();
+    this.redirectIfNotLoggedIn();
   },
 
   // --- Core Authentication Methods ---
@@ -70,6 +68,8 @@ const PersimmonAuth = {
       return { user: null, error };
     }
     console.log("User signed in:", data.user);
+    // Redirect to home page after successful sign-in
+    window.location.pathname = "/";
     return { user: data.user, error: null };
   },
 
@@ -159,18 +159,36 @@ const PersimmonAuth = {
   handleAuthStateChange() {
     if (!this.supabase) return;
     this.supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event);
-      const user = session?.user;
+      console.log("Auth state changed:", event, session);
 
-      // If user is logged in and on the login page, redirect to the app
-      if (user && window.location.pathname.includes("/auth/")) {
+      // This function is now primarily for logging and potential future UI updates.
+      // The redirect logic is handled by redirectIfNotLoggedIn() and the edge function.
+      if (
+        event === "SIGNED_IN" &&
+        window.location.pathname.includes("/auth/")
+      ) {
         window.location.pathname = "/";
-      }
-      // If user is not logged in and is outside the auth pages, redirect to login
-      else if (!user && !window.location.pathname.includes("/auth/")) {
+      } else if (event === "SIGNED_OUT") {
         window.location.pathname = "/auth/login.html";
       }
     });
+  },
+
+  /**
+   * Checks if a user is logged in and redirects to the login page if not.
+   * This is useful for pages that require authentication.
+   */
+  async redirectIfNotLoggedIn() {
+    // Don't run this logic on the auth pages themselves
+    if (window.location.pathname.includes("/auth/")) {
+      return;
+    }
+
+    const session = await this.getSession();
+    if (!session) {
+      console.log("No active session found, redirecting to login.");
+      window.location.pathname = "/auth/login.html";
+    }
   },
 
   /**
@@ -178,17 +196,24 @@ const PersimmonAuth = {
    * @returns {Promise<object|null>}
    */
   async getSession() {
-    if (!this.supabase) return null;
-    const { data } = await this.supabase.auth.getSession();
+    if (!this.supabase) {
+      console.error("getSession called before Supabase was initialized.");
+      return null;
+    }
+    const { data, error } = await this.supabase.auth.getSession();
+    if (error) {
+      console.error("Error getting session:", error.message);
+      return null;
+    }
     return data.session;
   },
 
   /**
    * Get the current user's data.
-   * @returns {object|null}
+   * @returns {Promise<object|null>}
    */
-  getUser() {
-    const session = this.getSession();
+  async getUser() {
+    const session = await this.getSession();
     return session?.user ?? null;
   },
 
