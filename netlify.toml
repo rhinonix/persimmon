@@ -3,6 +3,15 @@
 command = "./build.sh"
 publish = "public"
 
+# Global settings for all Edge Functions.
+[edge_functions]
+# This tells the Netlify bundler to not include "@supabase/ssr" in the bundle,
+# and instead resolve it at runtime. This is necessary for certain npm modules
+# in Deno-based Edge Functions.
+external_node_modules = ["@supabase/ssr"]
+
+# Specific Edge Function routing.
 [[edge_functions]]
 path = "/*"
 function = "auth-check"
+external_node_modules = ["@supabase/ssr"]
