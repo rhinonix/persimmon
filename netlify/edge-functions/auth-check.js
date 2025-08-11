@@ -1,30 +1,70 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 export default async (request, context) => {
   const url = new URL(request.url);
 
-  // Allow auth pages and assets to load without authentication
-  const allowedPaths = ["/auth/", "/assets/", "/favicon.ico", "/_netlify/"];
+  // Define public paths that do not require authentication.
+  const publicPaths = [
+    "/auth/login.html",
+    "/auth/signup.html",
+    "/auth/forgot-password.html",
+    "/auth/update-password.html",
+    "/assets/",
+    "/favicon.ico",
+  ];
 
-  const isAllowedPath = allowedPaths.some((path) =>
+  // Check if the requested path is public.
+  const isPublicPath = publicPaths.some((path) =>
     url.pathname.startsWith(path)
   );
 
-  if (isAllowedPath) {
+  // Allow access to public paths.
+  if (isPublicPath) {
     return await context.next();
   }
 
-  // Check if user is authenticated via Supabase
-  const cookies = request.headers.get("cookie") || "";
+  // Get the Supabase auth token from the cookies.
+  const supabaseToken = context.cookies.get("sb-access-token");
 
-  // Look for the Supabase auth token cookie.
-  // The cookie name is typically `sb-<project-ref>-auth-token`.
-  // A simple check for a cookie starting with "sb-" is sufficient here.
-  const hasSupabaseSession = cookies.includes("sb-");
-
-  if (!hasSupabaseSession) {
-    // Redirect to login if not authenticated
-    return Response.redirect(new URL("/auth/login.html", request.url));
+  // If there's no token, the user is not logged in. Redirect to the login page.
+  if (!supabaseToken) {
+    const redirectUrl = new URL("/auth/login.html", request.url);
+    return Response.redirect(redirectUrl);
   }
 
-  // User appears to be authenticated, continue to the requested page
-  return await context.next();
+  // If there is a token, we need to verify it with Supabase to ensure it's valid.
+  // This requires your Supabase URL and Anon Key.
+  // IMPORTANT: Set these as environment variables in your Netlify project.
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("Supabase URL or Anon Key not set in environment variables.");
+    // In case of misconfiguration, deny access.
+    return new Response("Server configuration error.", { status: 500 });
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: `Bearer ${supabaseToken}` },
+      },
+    });
+
+    // Fetch the user from Supabase. If it returns a user, the token is valid.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      // Token is valid, allow the request to proceed.
+      return await context.next();
+    }
+  } catch (error) {
+    console.error("Error verifying Supabase token:", error);
+  }
+
+  // If the token is invalid or verification fails, redirect to login.
+  const redirectUrl = new URL("/auth/login.html", request.url);
+  return Response.redirect(redirectUrl);
 };

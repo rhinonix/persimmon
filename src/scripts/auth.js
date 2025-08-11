@@ -44,16 +44,16 @@ const PersimmonAuth = {
       return;
     }
 
-    this.handleAuthStateChange();
+    // No longer doing redirects here. The Edge Function handles route protection.
+    // this.handleAuthStateChange();
   },
 
   // --- Core Authentication Methods ---
 
   /**
    * Sign in a user with email and password.
-   * @param {string} email - The user's email.
-   * @param {string} password - The user's password.
-   * @returns {Promise<{user: object, error: object}>}
+   * After sign-in, Supabase sets a cookie that the Edge Function will recognize.
+   * Then, we redirect to the root page.
    */
   async signIn(email, password) {
     if (!this.supabase)
@@ -114,6 +114,7 @@ const PersimmonAuth = {
 
   /**
    * Sign out the current user.
+   * This removes the Supabase cookie. The Edge Function will then deny access.
    */
   async signOut() {
     if (!this.supabase) return;
@@ -166,40 +167,8 @@ const PersimmonAuth = {
   },
 
   // --- Session & State Management ---
-
-  /**
-   * Handles all authentication state changes, including initial load.
-   * This is the single source of truth for redirect logic.
-   */
-  handleAuthStateChange() {
-    if (!this.supabase) return;
-
-    this.supabase.auth.onAuthStateChange((event, session) => {
-      const user = session?.user;
-      const isAuthPage = window.location.pathname.includes("/auth/");
-
-      console.log(`Auth event: ${event}`, session);
-
-      // Case 1: User is logged in
-      if (user) {
-        // If they are on an auth page (login, signup), redirect to the app's root
-        if (isAuthPage) {
-          console.log("User is logged in, redirecting from auth page to /");
-          window.location.pathname = "/";
-        }
-        // Otherwise, they are on a protected page and can stay there.
-      }
-      // Case 2: User is not logged in
-      else {
-        // If they are on a protected page, redirect to the login page
-        if (!isAuthPage) {
-          console.log("User is not logged in, redirecting to /auth/login.html");
-          window.location.pathname = "/auth/login.html";
-        }
-        // Otherwise, they are already on an auth page and can stay there.
-      }
-    });
-  },
+  // This section is no longer needed. The Edge Function is the source of truth.
+  // The UI can be updated based on the presence of the user on a protected page.
 
   // --- UI Helper Functions ---
 
