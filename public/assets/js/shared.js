@@ -474,6 +474,7 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
                                   }">${link.text}</a>`
                               )
                               .join("")}
+                            <button class="btn" onclick="PersimmonAuth.signOut()">Sign Out</button>
                         </nav>
                     </div>
                 </header>

@@ -151,49 +151,89 @@
             </div>
             
             <div id="error-message" class="error-message"></div>
-            
-            <button id="login-button" class="auth-button" onclick="handleLogin()" disabled>
-                Initializing...
-            </button>
-            
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required class="form-input">
+                </div>
+                <button id="login-button" type="submit" class="auth-button">
+                    Sign In
+                </button>
+            </form>
+
             <div class="auth-divider">
-                <span>Secure authentication powered by Auth0</span>
+                <span>Secure authentication powered by Supabase</span>
             </div>
-            
+
             <div class="auth-links">
                 <a href="forgot-password.html" class="auth-link">Forgot your password?</a>
+                <span style="color: var(--text-secondary); margin: 0 8px;">&middot;</span>
+                <a href="#" id="signup-link" class="auth-link">Sign up for an account</a>
             </div>
         </div>
     </div>
 
-    <!-- Auth0 SPA SDK (local copy) -->
-    <script src="/assets/js/auth0-spa-js.production.js"></script>
-    
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <!-- Persimmon Auth Module -->
     <script src="/assets/js/auth.js"></script>
 
     <script>
-        // This page now relies on the global PersimmonAuth object
-        // for all authentication logic.
-        
-        // Handle login button click
-        function handleLogin() {
-            const button = document.getElementById('login-button');
-            const originalText = button.textContent;
-            button.textContent = 'Redirecting...';
-            button.disabled = true;
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            const loginButton = document.getElementById('login-button');
+            const signupLink = document.getElementById('signup-link');
+            const errorMessageDiv = document.getElementById('error-message');
 
-            PersimmonAuth.login().catch(error => {
-                console.error('Login failed:', error);
-                // The error is already shown by the login function, 
-                // but we can restore the button state here.
-                button.textContent = originalText;
-                button.disabled = false;
+            // The PersimmonAuth object is initialized in auth.js and handles redirects
+            // if the user is already logged in.
+
+            // Handle Sign In
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginButton.disabled = true;
+                loginButton.textContent = 'Signing In...';
+                errorMessageDiv.style.display = 'none';
+
+                const email = e.target.email.value;
+                const password = e.target.password.value;
+
+                const { error } = await PersimmonAuth.signIn(email, password);
+
+                if (error) {
+                    errorMessageDiv.textContent = error.message;
+                    errorMessageDiv.style.display = 'block';
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Sign In';
+                }
+                // On success, the onAuthStateChange handler in auth.js will redirect.
             });
-        }
 
-        // The global PersimmonAuth object handles all initialization,
-        // redirects, and UI updates for the button state.
+            // Handle Sign Up
+            signupLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                // Simple prompt for demonstration. A real app would use a separate form.
+                const email = prompt("Please enter your email to sign up:");
+                if (!email) return;
+                const password = prompt("Please enter a password:");
+                if (!password) return;
+
+                const { error } = await PersimmonAuth.signUp(email, password);
+
+                if (error) {
+                    errorMessageDiv.textContent = `Sign up failed: ${error.message}`;
+                    errorMessageDiv.style.display = 'block';
+                } else {
+                    alert('Sign-up successful! Please check your email for a confirmation link.');
+                }
+            });
+        });
     </script>
 </body>
 </html>

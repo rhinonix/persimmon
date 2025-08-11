@@ -1,223 +1,218 @@
 /**
- * Persimmon Authentication Module - Auth0 Integration
- * Handles user authentication across the application using Auth0
+ * Persimmon Authentication Module - Supabase Integration
+ * Handles user authentication, session management, and password resets.
  */
 
 const PersimmonAuth = {
-  // Current user state
-  currentUser: null,
-  isAuthenticated: false,
-  auth0: null,
+  // Supabase client instance
+  supabase: null,
 
-  // Initialize authentication
-  async init() {
-    await this.setupAuth0();
-    await this.checkAuthState();
-    this.setupEventListeners();
-  },
+  // --- Configuration ---
+  // IMPORTANT: Replace with your actual Supabase URL and Anon Key.
+  // It's recommended to use environment variables for these in a real project.
+  SUPABASE_URL: "https://gkckzdqnplvsucqkauvl.supabase.co",
+  SUPABASE_ANON_KEY:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2t6ZHFucGx2c3VjcWthdXZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MTAwNjgsImV4cCI6MjA3MDQ4NjA2OH0.9VLOlxvJmoUFFTsGrqX2b8NFxgrtKXUDuMra6UEK-xc",
 
-  // Setup Auth0 client
-  async setupAuth0() {
-    try {
-      // Auth0 configuration - these values are public and safe to expose
-      // This is the single source of truth for the entire application.
-      const domain = "dev-bqb1oc1bvin0hma7.eu.auth0.com";
-      const clientId = "qbW7YQYKScHKSjqUy7UmnyH78rUlm6C0";
-      const audience = "";
-
-      // Check if we have valid configuration
-      if (typeof createAuth0Client !== "undefined") {
-        this.auth0 = await createAuth0Client({
-          domain: domain,
-          clientId: clientId,
-          authorizationParams: {
-            redirect_uri: window.location.origin,
-            audience: audience,
-          },
-        });
-
-        console.log("Auth0 initialized successfully");
-      } else {
-        console.warn("Auth0 SDK not loaded");
-      }
-    } catch (error) {
-      console.error("Failed to initialize Auth0:", error);
-    }
-    // Always update the UI after attempting to set up Auth0
-    this.updateUI();
-  },
-
-  // Check current authentication state
-  async checkAuthState() {
-    if (!this.auth0) return;
-
-    try {
-      // Handle Auth0 callback if present
-      if (
-        window.location.search.includes("code=") &&
-        window.location.search.includes("state=")
-      ) {
-        await this.auth0.handleRedirectCallback();
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-      }
-
-      // Check if user is authenticated
-      const isAuthenticated = await this.auth0.isAuthenticated();
-      if (isAuthenticated) {
-        const user = await this.auth0.getUser();
-        this.handleAuthChange(user);
-      } else {
-        this.handleAuthChange(null);
-      }
-    } catch (error) {
-      console.error("Auth state check failed:", error);
-      this.handleAuthChange(null);
-    }
-  },
-
-  // Update UI based on authentication state
-  updateUI() {
-    const loginButton = document.getElementById("login-button");
-    const configNotice = document.getElementById("config-notice");
-    const errorMessage = document.getElementById("error-message");
-
-    // Hide all messages by default
-    if (configNotice) configNotice.style.display = "none";
-    if (errorMessage) errorMessage.style.display = "none";
-
-    if (!this.auth0) {
-      if (loginButton) {
-        loginButton.textContent = "Setup Required";
-        loginButton.disabled = true;
-      }
-      if (configNotice) {
-        configNotice.style.display = "block";
-      }
+  // --- Initialization ---
+  init() {
+    // Check if Supabase credentials are set
+    if (
+      this.SUPABASE_URL === "https://gkckzdqnplvsucqkauvl.supabase.co" ||
+      this.SUPABASE_ANON_KEY ===
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrY2t6ZHFucGx2c3VjcWthdXZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5MTAwNjgsImV4cCI6MjA3MDQ4NjA2OH0.9VLOlxvJmoUFFTsGrqX2b8NFxgrtKXUDuMra6UEK-xc"
+    ) {
+      console.warn(
+        "Supabase credentials are not configured in auth.js. Please update them."
+      );
+      this.showConfigWarning();
       return;
     }
 
-    if (loginButton) {
-      loginButton.disabled = false;
-      loginButton.textContent = "Continue with Auth0";
-    }
-  },
-
-  // Handle authentication state changes
-  handleAuthChange(user) {
-    this.currentUser = user;
-    this.isAuthenticated = !!user;
-
-    if (user) {
-      this.onLogin(user);
+    // Initialize Supabase client if the SDK is available
+    if (
+      typeof supabase !== "undefined" &&
+      typeof supabase.createClient === "function"
+    ) {
+      this.supabase = supabase.createClient(
+        this.SUPABASE_URL,
+        this.SUPABASE_ANON_KEY
+      );
+      console.log("Supabase client initialized.");
     } else {
-      this.onLogout();
+      console.error(
+        "Supabase SDK not loaded. Make sure to include it in your HTML."
+      );
+      this.showConfigWarning("Supabase SDK not found.");
+      return;
     }
-    this.updateUI();
+
+    this.handleAuthStateChange();
   },
 
-  // Called when user logs in
-  onLogin(user) {
-    console.log("User logged in:", user);
+  // --- Core Authentication Methods ---
 
-    // Store user info for the session
-    if (typeof Persimmon !== "undefined" && Persimmon.storage) {
-      Persimmon.storage.set("currentUser", {
-        id: user.sub,
-        email: user.email,
-        name: user.name || user.email,
-        picture: user.picture,
-      });
+  /**
+   * Sign in a user with email and password.
+   * @param {string} email - The user's email.
+   * @param {string} password - The user's password.
+   * @returns {Promise<{user: object, error: object}>}
+   */
+  async signIn(email, password) {
+    if (!this.supabase)
+      return { user: null, error: { message: "Supabase not initialized." } };
+    const { data, error } = await this.supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      console.error("Sign-in error:", error.message);
+      return { user: null, error };
     }
-
-    // Redirect to the main app page if on the login page
-    if (window.location.pathname.includes("login.html")) {
-      window.location.pathname = "/";
-    }
+    console.log("User signed in:", data.user);
+    return { user: data.user, error: null };
   },
 
-  // Called when user logs out
-  onLogout() {
-    console.log("User logged out");
-    // Redirect to login page if not already there
-    if (!window.location.pathname.includes("login.html")) {
+  /**
+   * Sign up a new user.
+   * @param {string} email - The user's email.
+   * @param {string} password - The user's password.
+   * @returns {Promise<{user: object, error: object}>}
+   */
+  async signUp(email, password) {
+    if (!this.supabase)
+      return { user: null, error: { message: "Supabase not initialized." } };
+    const { data, error } = await this.supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (error) {
+      console.error("Sign-up error:", error.message);
+      return { user: null, error };
+    }
+    // Supabase sends a confirmation email by default.
+    console.log(
+      "Sign-up successful. Please check your email for confirmation.",
+      data.user
+    );
+    return { user: data.user, error: null };
+  },
+
+  /**
+   * Sign out the current user.
+   */
+  async signOut() {
+    if (!this.supabase) return;
+    const { error } = await this.supabase.auth.signOut();
+    if (error) {
+      console.error("Sign-out error:", error.message);
+    } else {
+      console.log("User signed out.");
+      // Redirect to login page after sign-out
       window.location.pathname = "/auth/login.html";
     }
   },
 
-  // Login with redirect
-  async login() {
-    if (!this.auth0) {
-      console.error("Auth0 client not initialized.");
-      const errorMessage = document.getElementById("error-message");
-      if (errorMessage) {
-        errorMessage.textContent =
-          "Authentication service is not available. Please try again later.";
-        errorMessage.style.display = "block";
-      }
-      return;
+  /**
+   * Send a password reset email.
+   * @param {string} email - The user's email.
+   * @returns {Promise<{error: object}>}
+   */
+  async sendPasswordResetEmail(email) {
+    if (!this.supabase)
+      return { error: { message: "Supabase not initialized." } };
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/update-password.html`,
+    });
+    if (error) {
+      console.error("Password reset error:", error.message);
+    } else {
+      console.log("Password reset email sent.");
     }
-    await this.auth0.loginWithRedirect({
-      authorizationParams: {
-        redirect_uri: window.location.origin,
-      },
+    return { error };
+  },
+
+  /**
+   * Update the user's password. This is typically done after a password reset.
+   * @param {string} newPassword - The new password.
+   * @returns {Promise<{error: object}>}
+   */
+  async updateUserPassword(newPassword) {
+    if (!this.supabase)
+      return { error: { message: "Supabase not initialized." } };
+    const { error } = await this.supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) {
+      console.error("Password update error:", error.message);
+    } else {
+      console.log("Password updated successfully.");
+    }
+    return { error };
+  },
+
+  // --- Session & State Management ---
+
+  /**
+   * Listen for changes in authentication state (sign-in, sign-out).
+   */
+  handleAuthStateChange() {
+    if (!this.supabase) return;
+    this.supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event);
+      const user = session?.user;
+
+      // If user is logged in and on the login page, redirect to the app
+      if (user && window.location.pathname.includes("/auth/")) {
+        window.location.pathname = "/";
+      }
+      // If user is not logged in and is outside the auth pages, redirect to login
+      else if (!user && !window.location.pathname.includes("/auth/")) {
+        window.location.pathname = "/auth/login.html";
+      }
     });
   },
 
-  // Logout
-  async logout() {
-    if (!this.auth0) return;
-    await this.auth0.logout({
-      logoutParams: {
-        returnTo: window.origin + "/auth/login.html",
-      },
-    });
+  /**
+   * Get the current user session.
+   * @returns {Promise<object|null>}
+   */
+  async getSession() {
+    if (!this.supabase) return null;
+    const { data } = await this.supabase.auth.getSession();
+    return data.session;
   },
 
-  // Get user profile
-  async getProfile() {
-    if (!this.auth0 || !this.isAuthenticated) return null;
-    return await this.auth0.getUser();
+  /**
+   * Get the current user's data.
+   * @returns {object|null}
+   */
+  getUser() {
+    const session = this.getSession();
+    return session?.user ?? null;
   },
 
-  // Setup event listeners
-  setupEventListeners() {
-    // This event listener ensures the UI is updated only after the DOM is fully loaded.
+  // --- UI Helper Functions ---
+
+  /**
+   * Display a warning on the page if Supabase is not configured.
+   */
+  showConfigWarning(message = "Supabase is not configured.") {
     document.addEventListener("DOMContentLoaded", () => {
-      this.updateUI();
+      const notice = document.getElementById("config-notice");
+      const loginButton = document.getElementById("login-button");
+
+      if (notice) {
+        notice.innerHTML = `<strong>Configuration Error:</strong> ${message} Please update <code>/assets/js/auth.js</code>.`;
+        notice.style.display = "block";
+      }
+      if (loginButton) {
+        loginButton.disabled = true;
+        loginButton.textContent = "Setup Required";
+      }
     });
   },
 };
 
-// Initialize authentication when the script loads
+// Initialize the auth module when the script loads
 PersimmonAuth.init();
-
-// Auto-initialize if in browser environment
-if (typeof window !== "undefined") {
-  // Wait for DOM and potential Auth0 script to load
-  document.addEventListener("DOMContentLoaded", () => {
-    // Add Auth0 script if not present
-    if (!document.querySelector('script[src*="auth0-spa-js"]')) {
-      const script = document.createElement("script");
-      script.src =
-        "https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js";
-      script.onload = () => {
-        PersimmonAuth.init();
-      };
-      document.head.appendChild(script);
-    } else {
-      PersimmonAuth.init();
-    }
-  });
-
-  // Make available globally
-  window.PersimmonAuth = PersimmonAuth;
-}
-
-// Export for ES6 modules
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = PersimmonAuth;
-}
