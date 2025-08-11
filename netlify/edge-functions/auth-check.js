@@ -14,9 +14,18 @@ export default async (request, context) => {
   ];
 
   // Check if the requested path is public.
-  const isPublicPath = publicPaths.some((path) =>
-    url.pathname.startsWith(path)
-  );
+  const pathname = url.pathname;
+  const isPublicPath = publicPaths.some((publicPath) => {
+    // Check for directory prefix match (e.g., /assets/)
+    if (publicPath.endsWith('/') && pathname.startsWith(publicPath)) {
+      return true;
+    }
+    // Check for exact file match or pretty URL match (e.g., /auth/login or /auth/login.html)
+    if (pathname === publicPath || pathname === publicPath.replace(/\.html$/, '')) {
+      return true;
+    }
+    return false;
+  });
 
   // Allow access to public paths.
   if (isPublicPath) {
