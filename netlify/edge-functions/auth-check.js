@@ -45,7 +45,7 @@ export default async (request, context) => {
       cookies: {
         get(key) {
           const cookies = context.cookies.getAll();
-          const cookie = cookies.find(c => c.name === key);
+          const cookie = cookies.find((c) => c.name === key);
           return cookie ? cookie.value : undefined;
         },
         set(key, value, options) {
@@ -57,7 +57,9 @@ export default async (request, context) => {
       },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
       // User is authenticated, allow the request to proceed.
