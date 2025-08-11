@@ -45,7 +45,6 @@ const PersimmonAuth = {
     }
 
     this.handleAuthStateChange();
-    this.redirectIfNotLoggedIn();
   },
 
   // --- Core Authentication Methods ---
@@ -169,67 +168,37 @@ const PersimmonAuth = {
   // --- Session & State Management ---
 
   /**
-   * Listen for changes in authentication state (sign-in, sign-out).
+   * Handles all authentication state changes, including initial load.
+   * This is the single source of truth for redirect logic.
    */
   handleAuthStateChange() {
     if (!this.supabase) return;
-    this.supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session);
 
-      // This function is now primarily for logging and potential future UI updates.
-      // The redirect logic is handled by redirectIfNotLoggedIn() and the edge function.
-      if (
-        event === "SIGNED_IN" &&
-        window.location.pathname.includes("/auth/")
-      ) {
-        window.location.pathname = "/";
-      } else if (event === "SIGNED_OUT") {
-        window.location.pathname = "/auth/login.html";
+    this.supabase.auth.onAuthStateChange((event, session) => {
+      const user = session?.user;
+      const isAuthPage = window.location.pathname.includes("/auth/");
+
+      console.log(`Auth event: ${event}`, session);
+
+      // Case 1: User is logged in
+      if (user) {
+        // If they are on an auth page (login, signup), redirect to the app's root
+        if (isAuthPage) {
+          console.log("User is logged in, redirecting from auth page to /");
+          window.location.pathname = "/";
+        }
+        // Otherwise, they are on a protected page and can stay there.
+      }
+      // Case 2: User is not logged in
+      else {
+        // If they are on a protected page, redirect to the login page
+        if (!isAuthPage) {
+          console.log("User is not logged in, redirecting to /auth/login.html");
+          window.location.pathname = "/auth/login.html";
+        }
+        // Otherwise, they are already on an auth page and can stay there.
       }
     });
-  },
-
-  /**
-   * Checks if a user is logged in and redirects to the login page if not.
-   * This is useful for pages that require authentication.
-   */
-  async redirectIfNotLoggedIn() {
-    // Don't run this logic on the auth pages themselves
-    if (window.location.pathname.includes("/auth/")) {
-      return;
-    }
-
-    const session = await this.getSession();
-    if (!session) {
-      console.log("No active session found, redirecting to login.");
-      window.location.pathname = "/auth/login.html";
-    }
-  },
-
-  /**
-   * Get the current user session.
-   * @returns {Promise<object|null>}
-   */
-  async getSession() {
-    if (!this.supabase) {
-      console.error("getSession called before Supabase was initialized.");
-      return null;
-    }
-    const { data, error } = await this.supabase.auth.getSession();
-    if (error) {
-      console.error("Error getting session:", error.message);
-      return null;
-    }
-    return data.session;
-  },
-
-  /**
-   * Get the current user's data.
-   * @returns {Promise<object|null>}
-   */
-  async getUser() {
-    const session = await this.getSession();
-    return session?.user ?? null;
   },
 
   // --- UI Helper Functions ---
