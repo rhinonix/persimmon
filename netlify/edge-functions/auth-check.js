@@ -43,8 +43,9 @@ export default async (request, context) => {
       return null;
     }
 
-    const authCookie = cookies.find(cookie => 
-      cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token')
+    const authCookie = cookies.find(
+      (cookie) =>
+        cookie.name.startsWith("sb-") && cookie.name.endsWith("-auth-token")
     );
 
     if (!authCookie) {

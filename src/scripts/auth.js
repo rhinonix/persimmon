@@ -202,15 +202,17 @@ const cookieStorageAdapter = {
     for (let i = 0; i < cookies.length; i++) {
       let cookie = cookies[i].trim();
       if (cookie.startsWith(key + "=")) {
-        return cookie.substring(key.length + 1);
+        // Decode the cookie value
+        return decodeURIComponent(cookie.substring(key.length + 1));
       }
     }
     return null;
   },
   setItem: (key, value) => {
-    // Set cookie to expire in a year, matching Supabase's default.
-    // The 'path=/' ensures the cookie is available across the entire site.
-    document.cookie = `${key}=${value}; path=/; max-age=31536000; secure; samesite=lax`;
+    // Encode the cookie value and set it
+    document.cookie = `${key}=${encodeURIComponent(
+      value
+    )}; path=/; max-age=31536000; secure; samesite=lax`;
   },
   removeItem: (key) => {
     // To remove a cookie, set its expiration date to the past.
