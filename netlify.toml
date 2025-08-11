@@ -7,4 +7,4 @@ publish = "public"
 [[edge_functions]]
 path = "/*"
 function = "auth-check"
-external_node_modules = ["@supabase/ssr"]
+import_map = "import_map.json"

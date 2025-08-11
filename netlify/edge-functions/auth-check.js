@@ -1,4 +1,4 @@
-import { createServerClient } from "npm:@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 
 export default async (request, context) => {
   const url = new URL(request.url);
