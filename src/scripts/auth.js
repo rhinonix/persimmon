@@ -67,8 +67,6 @@ const PersimmonAuth = {
       return { user: null, error };
     }
     console.log("User signed in:", data.user);
-    // Redirect to home page after successful sign-in
-    window.location.pathname = "/";
     return { user: data.user, error: null };
   },
 
