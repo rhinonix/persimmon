@@ -67,6 +67,7 @@ const PersimmonAuth = {
       return { user: null, error };
     }
     console.log("User signed in:", data.user);
+    window.location.href = '/';
     return { user: data.user, error: null };
   },
 
