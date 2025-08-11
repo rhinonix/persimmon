@@ -95,6 +95,21 @@ const PersimmonAuth = {
       "Sign-up successful. Please check your email for confirmation.",
       data.user
     );
+
+    // Display a message on the page
+    const formMessage = document.getElementById("form-message");
+    if (formMessage) {
+      formMessage.textContent =
+        "Success! Please check your email for a confirmation link.";
+      formMessage.className = "notice success";
+      formMessage.style.display = "block";
+    }
+    // Disable the form to prevent re-submission
+    const signupForm = document.getElementById("signup-form");
+    if (signupForm) {
+      Array.from(signupForm.elements).forEach((el) => (el.disabled = true));
+    }
+
     return { user: data.user, error: null };
   },
 

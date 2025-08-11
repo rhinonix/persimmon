@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign Up - Persimmon</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css"
+    />
+    <link rel="stylesheet" href="../assets/css/main.css" />
+  </head>
+  <body>
+    <main class="container">
+      <article class="grid">
+        <div>
+          <hgroup>
+            <h1>Sign Up</h1>
+            <h2>Create a new account</h2>
+          </hgroup>
+          <div id="config-notice" class="notice" style="display: none"></div>
+          <div id="form-message" class="notice" style="display: none"></div>
+          <form id="signup-form">
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              aria-label="Email"
+              autocomplete="email"
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              aria-label="Password"
+              autocomplete="new-password"
+              required
+            />
+            <button type="submit" id="signup-button" class="contrast">
+              Sign Up
+            </button>
+          </form>
+          <p>
+            Already have an account? <a href="/auth/login.html">Sign In</a>
+          </p>
+        </div>
+        <div></div>
+      </article>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script>
+      document
+        .getElementById("signup-form")
+        .addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const form = event.target;
+          const email = form.email.value;
+          const password = form.password.value;
+          const signupButton = document.getElementById("signup-button");
+          const formMessage = document.getElementById("form-message");
+
+          signupButton.setAttribute("aria-busy", "true");
+          signupButton.disabled = true;
+
+          const { error } = await PersimmonAuth.signUp(email, password);
+
+          signupButton.removeAttribute("aria-busy");
+          signupButton.disabled = false;
+
+          if (error) {
+            formMessage.textContent = `Error: ${error.message}`;
+            formMessage.className = "notice error";
+            formMessage.style.display = "block";
+          } else {
+            // The success message is now handled in the signUp function
+            // to show a persistent message on the page.
+          }
+        });
+    </script>
+  </body>
+</html>

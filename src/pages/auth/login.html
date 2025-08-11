@@ -173,7 +173,7 @@
             <div class="auth-links">
                 <a href="forgot-password.html" class="auth-link">Forgot your password?</a>
                 <span style="color: var(--text-secondary); margin: 0 8px;">&middot;</span>
-                <a href="#" id="signup-link" class="auth-link">Sign up for an account</a>
+                <a href="signup.html" class="auth-link">Sign up for an account</a>
             </div>
         </div>
     </div>
@@ -188,7 +188,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('login-form');
             const loginButton = document.getElementById('login-button');
-            const signupLink = document.getElementById('signup-link');
             const errorMessageDiv = document.getElementById('error-message');
 
             // The PersimmonAuth object is initialized in auth.js and handles redirects
@@ -213,25 +212,6 @@
                     loginButton.textContent = 'Sign In';
                 }
                 // On success, the onAuthStateChange handler in auth.js will redirect.
-            });
-
-            // Handle Sign Up
-            signupLink.addEventListener('click', async (e) => {
-                e.preventDefault();
-                // Simple prompt for demonstration. A real app would use a separate form.
-                const email = prompt("Please enter your email to sign up:");
-                if (!email) return;
-                const password = prompt("Please enter a password:");
-                if (!password) return;
-
-                const { error } = await PersimmonAuth.signUp(email, password);
-
-                if (error) {
-                    errorMessageDiv.textContent = `Sign up failed: ${error.message}`;
-                    errorMessageDiv.style.display = 'block';
-                } else {
-                    alert('Sign-up successful! Please check your email for a confirmation link.');
-                }
             });
         });
     </script>
