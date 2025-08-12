@@ -2,11 +2,11 @@
 
 ## Quick Setup (5 minutes)
 
-Your Persimmon Intelligence platform now has a clean, simplified authentication system using Supabase. Follow these steps to get it working:
+The platform now has a clean, simplified authentication system using Supabase. Follow these steps to get it working:
 
 ### Step 1: Get Your Supabase Credentials
 
-You mentioned you already have a Supabase project set up. You'll need:
+If you already have a Supabase project set up. You'll need:
 
 1. **Project URL** - looks like: `https://your-project-id.supabase.co`
 2. **Anon Key** - a long string starting with `eyJ...`
@@ -87,20 +87,20 @@ In Supabase dashboard:
 
 ### ✅ **Clean Authentication Flow**
 
-- Login/Signup pages with your Linear design aesthetic
+- Login/Signup pages with Linear design aesthetic
 - Password reset functionality
 - Automatic redirects for protected pages
 
 ### ✅ **Preserved Functionality**
 
-- All your existing pages work exactly as before
+- All existing pages work exactly as before
 - CSS and styling unchanged
 - Shared utilities and functionality intact
-- Intelligence platform features preserved
+- Platform features preserved
 
 ### ✅ **Professional Design**
 
-- Authentication pages match your existing design
+- Authentication pages match existing design
 - Clean, modern interface
 - Responsive design
 - Error handling and loading states
@@ -163,11 +163,11 @@ persimmon/
 ## Cost
 
 - Supabase free tier: 50,000 monthly active users
-- Your current usage: ~3 users = **$0/month**
+- Minimum usage: ~3 users = **$0/month**
 - Netlify free tier covers your hosting needs
 
 ---
 
 **Your authentication system is now ready!** 🔐
 
-The system provides enterprise-grade security with minimal setup, perfectly suited for your small team while maintaining the clean Linear aesthetic of your Persimmon Intelligence platform.
+The system provides enterprise-grade security with minimal setup, perfectly suited for a small team while maintaining a clean Linear aesthetic.
