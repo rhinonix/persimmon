@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Dashboard-specific styles */
+        .hero-section {
+            background: linear-gradient(135deg, #EC5800 0%, #D2691E 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .hero-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        
+        .hero-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.5;
+        }
+        
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .hero-stat {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .hero-stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .hero-stat-label {
+            font-size: 11px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .sidebar-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .dashboard-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .dashboard-card:hover {
+            border-color: var(--border-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .card-action {
+            font-size: 12px;
+            color: var(--accent-blue);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .card-action:hover {
+            text-decoration: underline;
+        }
+        
+        .recent-activity {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .activity-processing {
+            background: #fef6e7;
+            color: var(--persimmon-orange);
+        }
+        
+        .activity-feed {
+            background: #f0f9ff;
+            color: var(--accent-blue);
+        }
+        
+        .activity-report {
+            background: #f0fdf4;
+            color: var(--success-green);
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        
+        .activity-description {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+        
+        .activity-time {
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .action-card {
+            padding: 16px;
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            background: var(--bg-white);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        
+        .action-card:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-dark);
+            transform: translateY(-1px);
+        }
+        
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            margin: 0 auto 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-upload .action-icon {
+            background: #fef6e7;
+            color: var(--persimmon-orange);
+        }
+        
+        .action-feed .action-icon {
+            background: #f0f9ff;
+            color: var(--accent-blue);
+        }
+        
+        .action-report .action-icon {
+            background: #f0fdf4;
+            color: var(--success-green);
+        }
+        
+        .action-settings .action-icon {
+            background: #f8fafc;
+            color: var(--text-secondary);
+        }
+        
+        .action-title {
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .action-description {
+            font-size: 10px;
+            color: var(--text-secondary);
+            line-height: 1.2;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 16px;
+        }
+        
+        .metric-item {
+            text-align: center;
+        }
+        
+        .metric-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--persimmon-orange);
+            margin-bottom: 4px;
+        }
+        
+        .metric-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .pir-status {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .pir-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+        
+        .pir-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .pir-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-white);
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        
+        .status-overview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+        }
+        
+        .status-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .status-value {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status-online { color: var(--success-green); }
+        .status-processing { color: var(--persimmon-orange); }
+        .status-pending { color: var(--warning-amber); }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .feature-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #EC5800 0%, #D2691E 100%);
+            color: white;
+        }
+        
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .feature-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .hero-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">Persimmon Intelligence Platform</h1>
+        <p class="hero-subtitle">
+            Cost-effective evidentiary reachback capability supporting corporate security analytics, 
+            threat forecasting, and intelligence research operations.
+        </p>
+        
+        <div class="hero-stats">
+            <div class="hero-stat">
+                <div class="hero-stat-number" id="totalItems">247</div>
+                <div class="hero-stat-label">Total Items</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-number" id="processed">89</div>
+                <div class="hero-stat-label">AI Processed</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-number" id="highPriority">12</div>
+                <div class="hero-stat-label">High Priority</div>
+            </div>
+            <div class="hero-stat">
+                <div class="hero-stat-number" id="sources">8</div>
+                <div class="hero-stat-label">Active Sources</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="main-content">
+                <!-- Recent Activity -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Activity</h2>
+                        <a href="./feed.html" class="card-action">View All →</a>
+                    </div>
+                    
+                    <div class="recent-activity" id="recent-activity">
+                        <!-- Activity items will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Quick Actions</h2>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <a href="./processor.html" class="action-card action-upload">
+                            <div class="action-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                </svg>
+                            </div>
+                            <div class="action-title">Upload Data</div>
+                            <div class="action-description">Process new intelligence sources</div>
+                        </a>
+                        
+                        <a href="./feed.html" class="action-card action-feed">
+                            <div class="action-icon">
+                                <svg width="16" height="16" viewBox="0 0 50 50" fill="currentColor">
+                                    <circle cx="25" cy="25" r="8" fill="currentColor"/>
+                                    <circle cx="25" cy="25" r="3" fill="white"/>
+                                </svg>
+                            </div>
+                            <div class="action-title">View Feed</div>
+                            <div class="action-description">Browse intelligence items</div>
+                        </a>
+                        
+                        <a href="./reports.html" class="action-card action-report">
+                            <div class="action-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"/>
+                                </svg>
+                            </div>
+                            <div class="action-title">Generate Report</div>
+                            <div class="action-description">Create weekly briefing</div>
+                        </a>
+                        
+                        <div class="action-card action-settings" onclick="PersimmonDashboard.showSettings()">
+                            <div class="action-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                                </svg>
+                            </div>
+                            <div class="action-title">Settings</div>
+                            <div class="action-description">Configure platform</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- System Status -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2 class="card-title">System Status</h2>
+                    </div>
+                    
+                    <div class="status-overview">
+                        <div class="status-item">
+                            <div class="status-label">Data Sources</div>
+                            <div class="status-value status-online">Online</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">AI Processing</div>
+                            <div class="status-value status-processing">Active</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Feed Updates</div>
+                            <div class="status-value status-online">Live</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Queue Status</div>
+                            <div class="status-value status-pending">3 Pending</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PIR Coverage -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2 class="card-title">PIR Coverage</h2>
+                        <span class="card-action">This Week</span>
+                    </div>
+                    
+                    <div class="pir-status">
+                        <div class="pir-item">
+                            <span class="pir-name">Ukraine</span>
+                            <span class="pir-count">23 items</span>
+                        </div>
+                        <div class="pir-item">
+                            <span class="pir-name">Industrial Sabotage</span>
+                            <span class="pir-count">8 items</span>
+                        </div>
+                        <div class="pir-item">
+                            <span class="pir-name">Insider Threats</span>
+                            <span class="pir-count">3 items</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Performance Metrics -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Performance</h2>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-number">94%</div>
+                            <div class="metric-label">Accuracy</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-number">2.3s</div>
+                            <div class="metric-label">Avg Process</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-number">$47</div>
+                            <div class="metric-label">Monthly Cost</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-number">99.2%</div>
+                            <div class="metric-label">Uptime</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Platform Features -->
+        <div class="section">
+            <h2 class="section-title">Platform Capabilities</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">AI-Powered Analysis</h3>
+                    <p class="feature-description">
+                        Automated processing of intelligence sources using advanced language models 
+                        to identify relevant threats and categorize by priority.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17,12C17,14.42 15.28,16.44 13,16.9V21H11V16.9C8.72,16.44 7,14.42 7,12C7,9.58 8.72,7.56 11,7.1V3H13V7.1C15.28,7.56 17,9.58 17,12M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Multi-Source Integration</h3>
+                    <p class="feature-description">
+                        Seamlessly ingest data from Liferaft, GDELT, RSS feeds, and manual sources 
+                        into a unified intelligence feed for comprehensive coverage.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Professional Reporting</h3>
+                    <p class="feature-description">
+                        Generate executive-ready intelligence briefings with customizable templates, 
+                        threat assessments, and strategic recommendations.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.4C15.4,11.4 16,12 16,12.6V16.6C16,17.2 15.4,17.8 14.8,17.8H9.2C8.6,17.8 8,17.2 8,16.6V12.6C8,12 8.6,11.4 9.2,11.4V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.4,8.7 10.4,10V11.4H13.6V10C13.6,8.7 12.8,8.2 12,8.2Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Cost-Effective Security</h3>
+                    <p class="feature-description">
+                        Achieve enterprise-grade intelligence capabilities at a fraction of the cost 
+                        of traditional solutions like Seerist or Dragonfly.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    <script src="./assets/js/auth.js"></script>
+    
+    <!-- Dashboard-specific functionality -->
+    <script>
+        /**
+         * Persimmon Dashboard - Page Logic
+         * Uses shared Persimmon utilities
+         */
+        const PersimmonDashboard = {
+            // Initialize dashboard
+            init() {
+                this.setupHeader();
+                this.loadDashboardData();
+                this.renderRecentActivity();
+                this.updateStats();
+                this.startRealTimeUpdates();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                const navigationLinks = [
+                    { href: './index.html', text: 'Dashboard', primary: true },
+                    { href: './feed.html', text: 'Intelligence Feed' },
+                    { href: './processor.html', text: 'Data Processor' },
+                    { href: './reports.html', text: 'Reports' }
+                ];
+                
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Dashboard', navigationLinks);
+            },
+
+            loadDashboardData() {
+                // Load data from various sources
+                const feedData = Persimmon.storage.get('feedData') || { items: [] };
+                const processingData = Persimmon.storage.get('processingData') || { queue: [], approved: [] };
+                const reportData = Persimmon.storage.get('weeklyReportData') || { items: [] };
+                
+                this.dashboardData = {
+                    feedItems: feedData.items,
+                    processingQueue: processingData.queue,
+                    approvedItems: processingData.approved,
+                    reportItems: reportData.items
+                };
+            },
+
+            renderRecentActivity() {
+                const container = document.getElementById('recent-activity');
+                
+                // Generate sample recent activity
+                const activities = [
+                    {
+                        type: 'processing',
+                        icon: 'AI',
+                        title: 'AI Analysis Completed',
+                        description: '23 new items processed from Liferaft CSV export',
+                        time: '2 minutes ago'
+                    },
+                    {
+                        type: 'feed',
+                        icon: 'FEED',
+                        title: 'Intelligence Items Added',
+                        description: '5 high-priority items added to feed for review',
+                        time: '15 minutes ago'
+                    },
+                    {
+                        type: 'report',
+                        icon: 'RPT',
+                        title: 'Weekly Report Generated',
+                        description: 'Executive briefing compiled with 12 intelligence items',
+                        time: '1 hour ago'
+                    },
+                    {
+                        type: 'processing',
+                        icon: 'SRC',
+                        title: 'New Data Source Added',
+                        description: 'RSS feed configured for regional security updates',
+                        time: '3 hours ago'
+                    },
+                    {
+                        type: 'feed',
+                        icon: 'ALRT',
+                        title: 'High Priority Alert',
+                        description: 'Critical infrastructure threat detected and flagged',
+                        time: '6 hours ago'
+                    }
+                ];
+                
+                container.innerHTML = activities.map(activity => `
+                    <div class="activity-item">
+                        <div class="activity-icon activity-${activity.type}">
+                            ${activity.icon}
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">${activity.title}</div>
+                            <div class="activity-description">${activity.description}</div>
+                        </div>
+                        <div class="activity-time">${activity.time}</div>
+                    </div>
+                `).join('');
+            },
+
+            updateStats() {
+                // Update hero statistics with realistic numbers
+                const stats = this.calculateStats();
+                
+                Persimmon.ui.updateText('totalItems', stats.total);
+                Persimmon.ui.updateText('processed', stats.aiProcessed);
+                Persimmon.ui.updateText('highPriority', stats.highPriority);
+                Persimmon.ui.updateText('sources', stats.activeSources);
+            },
+
+            calculateStats() {
+                // Generate realistic statistics
+                const baseStats = {
+                    total: 247,
+                    aiProcessed: 89,
+                    highPriority: 12,
+                    activeSources: 8
+                };
+                
+                // Add some random variation to make it feel live
+                const variation = () => Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+                
+                return {
+                    total: Math.max(200, baseStats.total + variation()),
+                    aiProcessed: Math.max(70, baseStats.aiProcessed + variation()),
+                    highPriority: Math.max(8, baseStats.highPriority + variation()),
+                    activeSources: Math.max(6, baseStats.activeSources)
+                };
+            },
+
+            startRealTimeUpdates() {
+                // Update stats every 30 seconds to simulate live data
+                setInterval(() => {
+                    this.updateStats();
+                }, 30000);
+                
+                // Update recent activity every 5 minutes
+                setInterval(() => {
+                    this.addNewActivity();
+                }, 300000);
+            },
+
+            addNewActivity() {
+                const newActivities = [
+                    {
+                        type: 'processing',
+                        icon: 'AI',
+                        title: 'Background Processing',
+                        description: 'Routine analysis of RSS feed updates completed',
+                        time: 'Just now'
+                    },
+                    {
+                        type: 'feed',
+                        icon: 'UPD',
+                        title: 'Feed Updated',
+                        description: 'New intelligence items available for review',
+                        time: 'Just now'
+                    }
+                ];
+                
+                const randomActivity = newActivities[Math.floor(Math.random() * newActivities.length)];
+                const container = document.getElementById('recent-activity');
+                const existingItems = container.querySelectorAll('.activity-item');
+                
+                // Add new activity at the top
+                const newActivityHTML = `
+                    <div class="activity-item">
+                        <div class="activity-icon activity-${randomActivity.type}">
+                            ${randomActivity.icon}
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">${randomActivity.title}</div>
+                            <div class="activity-description">${randomActivity.description}</div>
+                        </div>
+                        <div class="activity-time">${randomActivity.time}</div>
+                    </div>
+                `;
+                
+                container.insertAdjacentHTML('afterbegin', newActivityHTML);
+                
+                // Remove oldest activity if more than 5 items
+                if (existingItems.length >= 5) {
+                    existingItems[existingItems.length - 1].remove();
+                }
+            },
+
+            showSettings() {
+                const settings = `
+Platform Settings:
+
+• API Configuration
+  - Claude API Key: ${Persimmon.api.claudeApiKey !== 'your-claude-api-key-here' ? 'Configured' : 'Not Set'}
+  - Processing Mode: Automated
+  - Confidence Threshold: 70%
+
+• Data Sources
+  - Liferaft: Active
+  - GDELT: Active  
+  - RSS Feeds: 3 configured
+  - Manual Entry: Enabled
+
+• Report Settings
+  - Default Template: Weekly Threat Report
+  - Classification: Internal Use Only
+  - Auto-generation: Disabled
+
+• Performance
+  - Monthly API Cost: ~$47
+  - Processing Speed: 2.3s average
+  - Accuracy Rate: 94%
+
+To modify settings, edit the shared.js configuration file.
+                `;
+                
+                alert(settings);
+            },
+
+            // Navigation helpers
+            openProcessor() {
+                window.location.href = './processor.html';
+            },
+
+            openFeed() {
+                window.location.href = './feed.html';
+            },
+
+            openReports() {
+                window.location.href = './reports.html';
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonDashboard.init();
+        });
+
+        // Make functions available globally for onclick handlers
+        window.PersimmonDashboard = PersimmonDashboard;
+    </script>
+</body>
+</html>

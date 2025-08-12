@@ -1,5 +1,0 @@
-{
-  "imports": {
-    "@supabase/ssr": "npm:@supabase/ssr"
-  }
-}

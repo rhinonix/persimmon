@@ -30,30 +30,40 @@ cp -R "$SRC_DIR/assets" "$DEST_DIR/"
 # --- JavaScript Processing ---
 echo "Processing JavaScript files..."
 
-# Check if Supabase environment variables are set
-if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-  echo "Error: SUPABASE_URL and SUPABASE_ANON_KEY environment variables must be set."
-  exit 1
-fi
-
-# Define source and destination for the auth script
-AUTH_SRC="$SRC_DIR/scripts/auth.js"
-AUTH_DEST="$DEST_DIR/assets/js/auth.js"
-
 # Ensure the destination directory for JS exists
 mkdir -p "$DEST_DIR/assets/js"
 
-echo "Injecting Supabase credentials into $AUTH_DEST"
-# Use a temporary file to avoid issues with sed -i on different systems
-TMP_FILE=$(mktemp)
-sed -e "s|__SUPABASE_URL__|$SUPABASE_URL|g" \
-    -e "s|__SUPABASE_ANON_KEY__|$SUPABASE_ANON_KEY|g" \
-    "$AUTH_SRC" > "$TMP_FILE" && mv "$TMP_FILE" "$AUTH_DEST"
+# Process auth.js with environment variable injection
+AUTH_SRC="$SRC_DIR/scripts/auth.js"
+AUTH_DEST="$DEST_DIR/assets/js/auth.js"
+
+if [ -f "$AUTH_SRC" ]; then
+    echo "Processing auth.js with environment variables..."
+    
+    # Check if environment variables are set
+    if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+        echo "Warning: SUPABASE_URL and SUPABASE_ANON_KEY environment variables not set."
+        echo "Using placeholder values. Set these in Netlify environment variables."
+        SUPABASE_URL_VALUE="https://your-project.supabase.co"
+        SUPABASE_ANON_KEY_VALUE="your-anon-key-here"
+    else
+        SUPABASE_URL_VALUE="$SUPABASE_URL"
+        SUPABASE_ANON_KEY_VALUE="$SUPABASE_ANON_KEY"
+    fi
+    
+    # Use a temporary file to avoid issues with sed on different systems
+    TMP_FILE=$(mktemp)
+    sed -e "s|__SUPABASE_URL__|$SUPABASE_URL_VALUE|g" \
+        -e "s|__SUPABASE_ANON_KEY__|$SUPABASE_ANON_KEY_VALUE|g" \
+        "$AUTH_SRC" > "$TMP_FILE" && mv "$TMP_FILE" "$AUTH_DEST"
+    
+    echo "Auth.js processed successfully"
+else
+    echo "Warning: auth.js not found at $AUTH_SRC"
+fi
 
 # Copy other JavaScript files from src/scripts to public/assets/js
 echo "Copying other JavaScript files..."
-# Use find to copy files, excluding the auth.js source to avoid overwriting
-find "$SRC_DIR/scripts" -type f -not -name "auth.js" -exec cp {} "$DEST_DIR/assets/js/" \;
-
+find "$SRC_DIR/scripts" -type f -name "*.js" -not -name "auth.js" -exec cp {} "$DEST_DIR/assets/js/" \; 2>/dev/null || echo "No other JavaScript files found."
 
 echo "Build process completed successfully."

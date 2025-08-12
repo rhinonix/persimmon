@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Feed - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <!-- Import Notification -->
+        <div class="import-notification" id="import-notification">
+            <div class="notification-content">
+                <div class="notification-text" id="notification-text">
+                    New items available for import from Data Processor
+                </div>
+                <div class="notification-actions">
+                    <button class="btn btn-primary" onclick="PersimmonFeed.importPendingItems()">Import Items</button>
+                    <button class="btn" onclick="PersimmonFeed.dismissNotification()">Dismiss</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="feed-header">
+            <h1 class="feed-title">Intelligence Feed</h1>
+            <div class="feed-meta">
+                <span>Last updated: <span id="last-updated">2 minutes ago</span></span>
+                <span>•</span>
+                <span id="sourceCount">47 active sources</span>
+                <span>•</span>
+                <span>Ukraine, Sabotage, Insider Threats</span>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="feed-filters" id="feed-filters">
+            <div class="filter-group">
+                <button class="filter-button active" data-filter="all">All</button>
+                <button class="filter-button" data-filter="ukraine">Ukraine</button>
+                <button class="filter-button" data-filter="sabotage">Sabotage</button>
+                <button class="filter-button" data-filter="insider">Insider Threats</button>
+            </div>
+            <div class="filter-group">
+                <button class="filter-button" data-priority="high">High Priority</button>
+                <button class="filter-button" data-time="24h">Last 24h</button>
+                <button class="filter-button" data-source="ai">AI Processed</button>
+            </div>
+            <div class="filter-group">
+                <label>Search:</label>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search titles and content...">
+            </div>
+            <div class="filter-group">
+                <button class="btn btn-secondary" onclick="PersimmonFeed.showAddItemForm()">Add Item</button>
+                <button class="btn" onclick="PersimmonFeed.exportSelected()">Export Selected</button>
+            </div>
+        </div>
+        
+        <!-- Manual Item Input -->
+        <div class="input-section" id="addItemForm" style="display: none;">
+            <h3>Add New Intelligence Item</h3>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>Title</label>
+                    <input type="text" id="newTitle" placeholder="Enter item title">
+                </div>
+                <div class="input-group">
+                    <label>PIR Category</label>
+                    <select id="newCategory">
+                        <option value="ukraine">Ukraine</option>
+                        <option value="sabotage">Industrial Sabotage</option>
+                        <option value="insider">Insider Threat</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Source</label>
+                    <input type="text" id="newSource" placeholder="e.g., Liferaft, RSS, Manual">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Summary/Quote</label>
+                <textarea id="newSummary" placeholder="Enter summary or relevant quote"></textarea>
+            </div>
+            <div class="input-grid">
+                <div class="input-group">
+                    <label>Link (Optional)</label>
+                    <input type="url" id="newLink" placeholder="https://...">
+                </div>
+                <div class="input-group">
+                    <label>Analyst Comment (Optional)</label>
+                    <input type="text" id="newComment" placeholder="Your analysis">
+                </div>
+                <div class="input-group">
+                    <button class="btn btn-primary" onclick="PersimmonFeed.addNewItem()">Add Item</button>
+                    <button class="btn" onclick="PersimmonFeed.hideAddItemForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="feed-container">
+            <div class="feed" id="feedContainer">
+                <!-- Feed items will be populated here -->
+            </div>
+            
+            <div class="sidebar">
+                <h3>
+                    <svg class="sidebar-icon" viewBox="0 0 50 50">
+                        <circle cx="25" cy="25" r="8" fill="#3b82f6"/>
+                        <circle cx="25" cy="25" r="3" fill="white"/>
+                    </svg>
+                    Selected for Report
+                </h3>
+                <div class="selected-items" id="selectedItems">
+                    <div class="empty-state">No items selected</div>
+                </div>
+                
+                <div class="sidebar-actions">
+                    <button class="btn btn-primary" onclick="PersimmonFeed.generateReport()">Generate Report</button>
+                    <button class="btn" onclick="PersimmonFeed.clearSelected()">Clear All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    <script src="./assets/js/auth.js"></script>
+    
+    <!-- Feed-specific functionality -->
+    <script>
+        /**
+         * Persimmon Intelligence Feed - Page Logic
+         * Uses shared Persimmon utilities
+         */
+        const PersimmonFeed = {
+            // Feed state
+            feedItems: [
+                {
+                    id: 1,
+                    title: "Ukrainian Forces Report Breakthrough Near Bakhmut",
+                    category: "ukraine",
+                    priority: "high",
+                    source: "Liferaft",
+                    originalSource: "Social Media Monitoring",
+                    date: "2025-07-30",
+                    time: "23 minutes ago",
+                    summary: "Ukrainian military sources report successful breakthrough of Russian defensive positions east of Bakhmut, with territorial gains of approximately 2km along strategic supply route.",
+                    quote: "3rd Assault Brigade has secured key positions overlooking the main supply corridor. Russian forces appear to be conducting organized withdrawal to secondary defensive lines.",
+                    link: "",
+                    analystComment: "Significant tactical development. First major Ukrainian breakthrough in this sector since February. Suggests Russian defensive posture may be weakening.",
+                    aiProcessed: false,
+                    confidence: null,
+                    selected: false
+                },
+                {
+                    id: 2,
+                    title: "Industrial Facility Cyber Attack - Critical Infrastructure Sector",
+                    category: "sabotage",
+                    priority: "medium",
+                    source: "GDELT",
+                    originalSource: "",
+                    date: "2025-07-30",
+                    time: "1 hour ago",
+                    summary: "Coordinated cyber attack targeting industrial control systems at energy facility in Romania. Attack patterns consistent with previous infrastructure campaigns linked to state actors.",
+                    quote: "Initial forensics suggest sophisticated malware designed specifically for SCADA systems. Attack vector appears to be spear-phishing targeting operational technology personnel.",
+                    link: "",
+                    analystComment: "Attack methodology matches patterns seen in previous campaigns attributed to APT groups with links to state actors. Recommend enhanced monitoring of similar facilities.",
+                    aiProcessed: false,
+                    confidence: null,
+                    selected: false
+                }
+            ],
+            
+            selectedItems: [],
+            
+            currentFilters: {
+                category: 'all',
+                priority: null,
+                time: null,
+                source: null,
+                search: ''
+            },
+
+            // Initialize feed
+            init() {
+                this.setupHeader();
+                this.setupFilters();
+                this.setupSearch();
+                this.checkForImportedItems();
+                this.renderFeed();
+                this.renderSelectedItems();
+                this.updateSourceCount();
+                this.updateLastUpdated();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Intelligence Feed', 'feed');
+            },
+
+            setupFilters() {
+                Persimmon.filters.setupFilterButtons('#feed-filters', (filterType, value) => {
+                    this.currentFilters[filterType] = value;
+                    this.renderFeed();
+                });
+            },
+
+            setupSearch() {
+                const searchInput = document.getElementById('searchInput');
+                searchInput.addEventListener('input', (e) => {
+                    this.currentFilters.search = e.target.value;
+                    this.renderFeed();
+                });
+            },
+
+            // Import functionality
+            checkForImportedItems() {
+                const importedItems = Persimmon.storage.get('newFeedItems');
+                if (importedItems && importedItems.length > 0) {
+                    const notification = document.getElementById('import-notification');
+                    const notificationText = document.getElementById('notification-text');
+                    
+                    notificationText.textContent = `${importedItems.length} new items ready for import from Data Processor`;
+                    notification.style.display = 'block';
+                }
+            },
+
+            importPendingItems() {
+                const importedItems = Persimmon.storage.get('newFeedItems');
+                if (importedItems && importedItems.length > 0) {
+                    // Add imported items to the beginning of the feed
+                    importedItems.forEach(item => {
+                        this.feedItems.unshift(item);
+                    });
+                    
+                    // Clear the stored items
+                    Persimmon.storage.remove('newFeedItems');
+                    
+                    // Hide notification
+                    document.getElementById('import-notification').style.display = 'none';
+                    
+                    // Update feed display
+                    this.renderFeed();
+                    this.updateSourceCount();
+                    
+                    // Show success message
+                    Persimmon.notifications.success(`Successfully imported ${importedItems.length} items from Data Processor!`);
+                }
+            },
+
+            dismissNotification() {
+                document.getElementById('import-notification').style.display = 'none';
+            },
+
+            // Render functions
+            renderFeed() {
+                const container = document.getElementById('feedContainer');
+                const filteredItems = Persimmon.filters.applyFilters(this.feedItems, this.currentFilters);
+                
+                if (filteredItems.length === 0) {
+                    container.innerHTML = this.renderEmptyState();
+                    return;
+                }
+                
+                container.innerHTML = filteredItems.map(item => this.renderFeedItem(item)).join('');
+            },
+
+            renderFeedItem(item) {
+                return `
+                    <div class="feed-item ${item.selected ? 'selected' : ''} ${item.aiProcessed ? 'ai-processed' : ''}" 
+                         data-id="${item.id}" onclick="PersimmonFeed.toggleExpand(${item.id})">
+                        <!-- Collapsed view -->
+                        <div class="item-collapsed">
+                            <div class="item-title-collapsed">
+                                ${Persimmon.utils.sanitizeHtml(item.title)}
+                                ${item.aiProcessed ? Persimmon.ui.createAIIndicator(item.confidence) : ''}
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                ${Persimmon.ui.createPriorityBadge(item.priority)}
+                                <div class="expand-indicator">
+                                    <span>View Details</span>
+                                    <span class="expand-arrow">▶</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Expanded view -->
+                        <div class="item-expanded">
+                            <div class="item-header">
+                                <div class="item-title">
+                                    ${Persimmon.utils.sanitizeHtml(item.title)}
+                                    ${item.aiProcessed ? Persimmon.ui.createAIIndicator(item.confidence) : ''}
+                                </div>
+                                ${Persimmon.ui.createPriorityBadge(item.priority)}
+                            </div>
+                            <div class="item-summary">${Persimmon.utils.sanitizeHtml(item.summary)}</div>
+                            
+                            ${item.quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
+                            
+                            ${item.analystComment ? `
+                                <div class="analyst-comment">
+                                    <div class="comment-label">Analyst Comment</div>
+                                    <div class="comment-text">${Persimmon.utils.sanitizeHtml(item.analystComment)}</div>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="item-meta">
+                                <div class="meta-left">
+                                    <span class="meta-source">${item.source}</span>
+                                    ${item.originalSource ? `<span>• ${item.originalSource}</span>` : ''}
+                                    <span>•</span>
+                                    <span>${Persimmon.utils.capitalize(item.category)}</span>
+                                    <span>•</span>
+                                    <span>${item.time}</span>
+                                </div>
+                                <div class="item-actions">
+                                    <button class="action-btn ${item.selected ? 'secondary' : 'primary'}" 
+                                            onclick="event.stopPropagation(); PersimmonFeed.toggleSelection(${item.id})">
+                                        ${item.selected ? 'Remove from Report' : 'Add to Report'}
+                                    </button>
+                                    ${item.link ? `<a href="${item.link}" target="_blank" class="action-btn" onclick="event.stopPropagation()">View Source</a>` : ''}
+                                    <button class="action-btn" onclick="event.stopPropagation(); PersimmonFeed.editItem(${item.id})">Edit</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderEmptyState() {
+                return `
+                    <div class="empty-state" style="padding: 60px 20px;">
+                        <div style="margin-bottom: 16px;">
+                            <svg width="48" height="48" viewBox="0 0 50 50" fill="currentColor" style="opacity: 0.3;">
+                                <circle cx="25" cy="25" r="22" fill="none" stroke="currentColor" stroke-width="2"/>
+                                <circle cx="25" cy="25" r="8" fill="currentColor"/>
+                                <circle cx="25" cy="25" r="3" fill="white"/>
+                                <circle cx="35" cy="15" r="4" fill="currentColor"/>
+                                <circle cx="35" cy="15" r="2" fill="white"/>
+                            </svg>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 500; color: #6e6e73; margin-bottom: 8px;">No Intelligence Items</div>
+                        <div style="font-size: 13px; line-height: 1.4; max-width: 300px; margin: 0 auto;">
+                            No items match your current filters. Try adjusting your search or filter criteria.
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderSelectedItems() {
+                const container = document.getElementById('selectedItems');
+                
+                if (this.selectedItems.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No items selected</div>';
+                    return;
+                }
+                
+                container.innerHTML = this.selectedItems.map(item => `
+                    <div class="selected-item" onclick="PersimmonFeed.toggleSelection(${item.id})">
+                        <div class="selected-item-title">${Persimmon.utils.truncate(item.title, 60)}</div>
+                        <div class="selected-item-meta">
+                            ${item.category.toUpperCase()} • ${item.priority.toUpperCase()}
+                            ${item.aiProcessed ? ' • AI PROCESSED' : ''}
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // Item interactions
+            toggleExpand(itemId) {
+                const feedItem = document.querySelector(`[data-id="${itemId}"]`);
+                if (feedItem) {
+                    feedItem.classList.toggle('expanded');
+                }
+            },
+
+            toggleSelection(itemId) {
+                const item = this.feedItems.find(i => i.id === itemId);
+                if (item) {
+                    item.selected = !item.selected;
+                    if (item.selected) {
+                        this.selectedItems.push(item);
+                    } else {
+                        this.selectedItems = this.selectedItems.filter(i => i.id !== itemId);
+                    }
+                    this.renderFeed();
+                    this.renderSelectedItems();
+                }
+            },
+
+            clearSelected() {
+                this.feedItems.forEach(item => item.selected = false);
+                this.selectedItems = [];
+                this.renderFeed();
+                this.renderSelectedItems();
+            },
+
+            // Form handling
+            showAddItemForm() {
+                Persimmon.ui.toggle('addItemForm', true);
+            },
+
+            hideAddItemForm() {
+                Persimmon.ui.toggle('addItemForm', false);
+                // Clear form
+                document.getElementById('newTitle').value = '';
+                document.getElementById('newSummary').value = '';
+                document.getElementById('newLink').value = '';
+                document.getElementById('newComment').value = '';
+                document.getElementById('newSource').value = '';
+            },
+
+            addNewItem() {
+                const title = document.getElementById('newTitle').value;
+                const category = document.getElementById('newCategory').value;
+                const source = document.getElementById('newSource').value;
+                const summary = document.getElementById('newSummary').value;
+                const link = document.getElementById('newLink').value;
+                const comment = document.getElementById('newComment').value;
+                
+                if (!title || !summary) {
+                    Persimmon.notifications.error('Title and summary are required');
+                    return;
+                }
+                
+                const newItem = {
+                    id: Persimmon.utils.generateId(),
+                    title,
+                    category,
+                    priority: 'medium', // Default priority
+                    source: source || 'Manual Entry',
+                    originalSource: '',
+                    date: new Date().toISOString().split('T')[0],
+                    time: 'Just now',
+                    summary,
+                    quote: '',
+                    link,
+                    analystComment: comment,
+                    aiProcessed: false,
+                    confidence: null,
+                    selected: false
+                };
+                
+                this.feedItems.unshift(newItem);
+                this.renderFeed();
+                this.hideAddItemForm();
+                this.updateSourceCount();
+                
+                Persimmon.notifications.success('New intelligence item added successfully');
+            },
+
+            editItem(itemId) {
+                const item = this.feedItems.find(i => i.id === itemId);
+                if (item) {
+                    // Pre-populate form with existing item data
+                    document.getElementById('newTitle').value = item.title;
+                    document.getElementById('newCategory').value = item.category;
+                    document.getElementById('newSource').value = item.source;
+                    document.getElementById('newSummary').value = item.summary;
+                    document.getElementById('newLink').value = item.link || '';
+                    document.getElementById('newComment').value = item.analystComment || '';
+                    
+                    this.showAddItemForm();
+                    
+                    // Remove the original item when editing
+                    this.feedItems = this.feedItems.filter(i => i.id !== itemId);
+                    if (item.selected) {
+                        this.selectedItems = this.selectedItems.filter(i => i.id !== itemId);
+                    }
+                    
+                    this.renderFeed();
+                    this.renderSelectedItems();
+                }
+            },
+
+            // Export functionality
+            exportSelected() {
+                if (this.selectedItems.length === 0) {
+                    Persimmon.notifications.warning('No items selected for export');
+                    return;
+                }
+                
+                const exportData = this.selectedItems.map(item => ({
+                    title: item.title,
+                    category: item.category,
+                    priority: item.priority,
+                    summary: item.summary,
+                    quote: item.quote,
+                    analystComment: item.analystComment,
+                    source: item.source,
+                    originalSource: item.originalSource,
+                    date: item.date,
+                    time: item.time,
+                    link: item.link,
+                    aiProcessed: item.aiProcessed,
+                    confidence: item.confidence
+                }));
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `persimmon-intelligence-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                Persimmon.notifications.success(`Exported ${exportData.length} selected items`);
+            },
+
+            // Report generation
+            generateReport() {
+                if (this.selectedItems.length === 0) {
+                    Persimmon.notifications.warning('Please select at least one intelligence item for the report');
+                    return;
+                }
+                
+                const button = event.target;
+                Persimmon.ui.setButtonLoading(button, true, 'Generating...');
+                
+                // Simulate report generation
+                setTimeout(() => {
+                    Persimmon.ui.setButtonLoading(button, false);
+                    
+                    // Generate report summary
+                    const reportData = {
+                        date: new Date().toISOString().split('T')[0],
+                        items: this.selectedItems,
+                        summary: this.generateReportSummary(this.selectedItems)
+                    };
+                    
+                    // Store report data for weekly report template
+                    Persimmon.storage.set('weeklyReportData', reportData);
+                    
+                    Persimmon.notifications.success(`Report generated with ${this.selectedItems.length} items`);
+                    
+                    if (confirm('Report data prepared! Open weekly report template?')) {
+                        // In production, this would navigate to report template
+                        window.open('./reports.html', '_blank');
+                    }
+                }, 2000);
+            },
+
+            generateReportSummary(items) {
+                const categories = {
+                    ukraine: items.filter(i => i.category === 'ukraine').length,
+                    sabotage: items.filter(i => i.category === 'sabotage').length,
+                    insider: items.filter(i => i.category === 'insider').length
+                };
+                
+                const priorities = {
+                    high: items.filter(i => i.priority === 'high').length,
+                    medium: items.filter(i => i.priority === 'medium').length,
+                    low: items.filter(i => i.priority === 'low').length
+                };
+                
+                const aiProcessed = items.filter(i => i.aiProcessed).length;
+                
+                return `${items.length} intelligence items selected:\n• Ukraine: ${categories.ukraine}\n• Sabotage: ${categories.sabotage}\n• Insider Threats: ${categories.insider}\n\nPriority breakdown:\n• High: ${priorities.high}\n• Medium: ${priorities.medium}\n• Low: ${priorities.low}\n\nAI-processed items: ${aiProcessed}`;
+            },
+
+            // Utility functions
+            updateSourceCount() {
+                Persimmon.ui.updateText('sourceCount', `${this.feedItems.length} items in feed`);
+            },
+
+            updateLastUpdated() {
+                Persimmon.ui.updateText('last-updated', 'Just now');
+                
+                setTimeout(() => {
+                    Persimmon.ui.updateText('last-updated', '1 minute ago');
+                }, 60000);
+            },
+
+            // Navigation helpers
+            openDataProcessor() {
+                if (confirm('Open Data Processor to import new intelligence sources?')) {
+                    window.open('./processor.html', '_blank');
+                }
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonFeed.init();
+        });
+
+        // Make functions available globally for onclick handlers
+        window.PersimmonFeed = PersimmonFeed;
+    </script>
+</body>
+</html>
