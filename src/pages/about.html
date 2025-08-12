@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* About page specific styles */
+        .hero-section {
+            background: linear-gradient(135deg, #EC5800 0%, #D2691E 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .hero-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        
+        .hero-subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+            margin-bottom: 0;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        
+        .feature-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            border-color: var(--persimmon-orange);
+            box-shadow: 0 8px 25px rgba(236, 88, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #EC5800 0%, #D2691E 100%);
+            color: white;
+        }
+        
+        .feature-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        
+        .feature-description {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        .benefits-section {
+            background: var(--bg-secondary);
+            padding: 60px 20px;
+            margin: 50px -20px;
+            text-align: center;
+        }
+        
+        .benefits-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+        
+        .benefits-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .benefit-item {
+            text-align: center;
+        }
+        
+        .benefit-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--persimmon-orange);
+            margin-bottom: 8px;
+        }
+        
+        .benefit-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .benefit-description {
+            font-size: 13px;
+            color: var(--text-tertiary);
+        }
+        
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 28px;
+            }
+            
+            .hero-subtitle {
+                font-size: 16px;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .benefits-section {
+                margin: 30px -20px;
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">Persimmon Intelligence Platform</h1>
+        <p class="hero-subtitle">
+            Enterprise-grade intelligence analysis at a fraction of the cost. 
+            Automated processing, multi-source integration, and professional reporting 
+            designed for modern security teams.
+        </p>
+    </div>
+    
+    <div class="container">
+        <!-- Platform Features -->
+        <div class="section">
+            <h2 class="section-title">Platform Capabilities</h2>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">AI-Powered Analysis</h3>
+                    <p class="feature-description">
+                        Automated processing of intelligence sources using advanced language models 
+                        to identify relevant threats and categorize by priority. Achieve 94% accuracy 
+                        with 2.3 second average processing time.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17,12C17,14.42 15.28,16.44 13,16.9V21H11V16.9C8.72,16.44 7,14.42 7,12C7,9.58 8.72,7.56 11,7.1V3H13V7.1C15.28,7.56 17,9.58 17,12M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Multi-Source Integration</h3>
+                    <p class="feature-description">
+                        Seamlessly ingest data from Liferaft, GDELT, RSS feeds, and manual sources 
+                        into a unified intelligence feed. Support for CSV, JSON, XML, and direct text input 
+                        with automatic format detection.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14,17H7V15H14M17,13H7V11H17M17,9H7V7H17M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Professional Reporting</h3>
+                    <p class="feature-description">
+                        Generate executive-ready intelligence briefings with customizable templates, 
+                        threat assessments, and strategic recommendations. Export to PDF with 
+                        professional formatting and classification markings.
+                    </p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,7C13.4,7 14.8,8.6 14.8,10V11.4C15.4,11.4 16,12 16,12.6V16.6C16,17.2 15.4,17.8 14.8,17.8H9.2C8.6,17.8 8,17.2 8,16.6V12.6C8,12 8.6,11.4 9.2,11.4V10C9.2,8.6 10.6,7 12,7M12,8.2C11.2,8.2 10.4,8.7 10.4,10V11.4H13.6V10C13.6,8.7 12.8,8.2 12,8.2Z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Cost-Effective Security</h3>
+                    <p class="feature-description">
+                        Achieve enterprise-grade intelligence capabilities at a fraction of the cost 
+                        of traditional solutions like Seerist or Dragonfly. Typical monthly costs 
+                        under $50 for small teams with unlimited processing.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Benefits Section -->
+        <div class="benefits-section">
+            <h2 class="benefits-title">Why Choose Persimmon?</h2>
+            <p class="benefits-subtitle">
+                Built for modern security teams who need enterprise capabilities 
+                without enterprise complexity or cost.
+            </p>
+            
+            <div class="benefits-grid">
+                <div class="benefit-item">
+                    <div class="benefit-number">94%</div>
+                    <div class="benefit-label">Accuracy Rate</div>
+                    <div class="benefit-description">AI-powered analysis</div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-number">2.3s</div>
+                    <div class="benefit-label">Avg Processing</div>
+                    <div class="benefit-description">Lightning fast analysis</div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-number">$47</div>
+                    <div class="benefit-label">Monthly Cost</div>
+                    <div class="benefit-description">Fraction of alternatives</div>
+                </div>
+                
+                <div class="benefit-item">
+                    <div class="benefit-number">99.2%</div>
+                    <div class="benefit-label">Uptime</div>
+                    <div class="benefit-description">Reliable operation</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    <script src="./assets/js/auth.js"></script>
+    
+    <!-- About page specific functionality -->
+    <script>
+        /**
+         * Persimmon About Page - Platform Information
+         */
+        const PersimmonAbout = {
+            init() {
+                this.setupHeader();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                const navigationLinks = [
+                    { href: './index.html', text: 'Dashboard' },
+                    { href: './processor.html', text: 'Data Processor' },
+                    { href: './feed.html', text: 'Intelligence Feed' },
+                    { href: './reports.html', text: 'Reports' }
+                ];
+                
+                headerContainer.innerHTML = Persimmon.ui.createHeader('About', navigationLinks);
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonAbout.init();
+        });
+    </script>
+</body>
+</html>

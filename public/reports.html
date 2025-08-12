@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weekly Reports - Persimmon Intelligence</title>
-    <link rel="stylesheet" href="./assets/css/main.css">
+    <link rel="stylesheet" href="../assets/css/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <!-- Add docx generation library -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <style>
         /* Reports-specific styles */
         .report-builder {
@@ -362,6 +365,131 @@
         .editable-content:hover::before {
             opacity: 1;
         }
+
+        /* Weekly Risk Report Specific Styles */
+        .risk-report {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .risk-report-header {
+            text-align: left;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 30px;
+        }
+        
+        .classification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .classification-left {
+            font-weight: 600;
+        }
+        
+        .classification-right {
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .report-title-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .risk-report-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 8px;
+        }
+        
+        .risk-report-subtitle {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .risk-report-date {
+            font-size: 14px;
+            color: #000;
+        }
+        
+        .section-divider {
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            margin: 30px 0 20px 0;
+            color: #000;
+        }
+        
+        .risk-section {
+            margin-bottom: 30px;
+        }
+        
+        .risk-section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #dc2626;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+        }
+        
+        .risk-subsection {
+            margin-bottom: 20px;
+        }
+        
+        .risk-subsection-title {
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #000;
+        }
+        
+        .risk-content {
+            font-size: 11px;
+            line-height: 1.5;
+            color: #000;
+            margin-left: 0;
+        }
+        
+        .risk-content p {
+            margin-bottom: 12px;
+        }
+        
+        .risk-content ul {
+            margin: 10px 0;
+            padding-left: 15px;
+        }
+        
+        .risk-content li {
+            margin-bottom: 8px;
+        }
+
+        /* Export button styling */
+        .export-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .export-buttons .btn {
+            flex: 1;
+            min-width: 100px;
+            font-size: 11px;
+            padding: 8px 12px;
+        }
         
         @media print {
             .report-controls,
@@ -454,6 +582,9 @@
                             <div class="template-option active" data-template="weekly">
                                 Weekly Threat Report
                             </div>
+                            <div class="template-option" data-template="risk">
+                                Weekly Risk Report
+                            </div>
                             <div class="template-option" data-template="executive">
                                 Executive Summary
                             </div>
@@ -468,7 +599,7 @@
                         
                         <div class="input-group" style="margin-bottom: 12px;">
                             <label>Report Period</label>
-                            <input type="text" id="reportPeriod" placeholder="July 25 - August 1, 2025">
+                            <input type="text" id="reportPeriod" placeholder="1 August 2025">
                         </div>
                         
                         <div class="input-group" style="margin-bottom: 12px;">
@@ -480,6 +611,16 @@
                             </select>
                         </div>
                         
+                        <div class="input-group" style="margin-bottom: 12px;">
+                            <label>Focus Region</label>
+                            <select id="focusRegion">
+                                <option value="ukraine">Ukraine</option>
+                                <option value="global">Global</option>
+                                <option value="europe">Europe</option>
+                                <option value="asia">Asia-Pacific</option>
+                            </select>
+                        </div>
+                        
                         <div class="input-group">
                             <label>Threat Level</label>
                             <select id="threatLevel">
@@ -487,6 +628,19 @@
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
                             </select>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 class="control-title">Export Options</h3>
+                        
+                        <div class="export-buttons">
+                            <button class="btn" onclick="PersimmonReports.exportToWord()" id="exportWordBtn">
+                                Export Word
+                            </button>
+                            <button class="btn btn-secondary" onclick="PersimmonReports.generatePDF()">
+                                Export PDF
+                            </button>
                         </div>
                     </div>
                     
@@ -511,8 +665,8 @@
     </div>
 
     <!-- Include shared utilities first -->
-    <script src="./assets/js/shared.js"></script>
-    <script src="./assets/js/auth.js"></script>
+    <script src="../assets/js/shared.js"></script>
+    <script src="../scripts/auth.js"></script>
     
     <!-- Reports-specific functionality -->
     <script>
@@ -553,6 +707,7 @@
                 const reportPeriod = document.getElementById('reportPeriod');
                 const classification = document.getElementById('classification');
                 const threatLevel = document.getElementById('threatLevel');
+                const focusRegion = document.getElementById('focusRegion');
 
                 reportPeriod.addEventListener('input', () => {
                     if (this.reportData) this.renderReport();
@@ -563,6 +718,10 @@
                 });
 
                 threatLevel.addEventListener('change', () => {
+                    if (this.reportData) this.renderReport();
+                });
+
+                focusRegion.addEventListener('change', () => {
                     if (this.reportData) this.renderReport();
                 });
             },
@@ -625,24 +784,34 @@
                     date: new Date().toISOString().split('T')[0],
                     items: [
                         {
-                            title: "Regional Security Assessment - Eastern Europe",
+                            title: "Chasiv Yar Direction - Russian Territorial Claims",
                             category: "ukraine",
                             priority: "high",
-                            summary: "Comprehensive analysis of regional security developments following recent diplomatic initiatives and military repositioning in Eastern European theater.",
-                            quote: "Strategic implications extend beyond immediate tactical considerations to broader geopolitical realignment patterns.",
-                            analystComment: "Elevated threat indicators suggest continued monitoring required for Q4 assessment period.",
-                            source: "Multi-source Analysis",
+                            summary: "Russian Ministry of Defense claimed completion of Chasiv Yar seizure on July 31, with geolocated footage indicating Russian forces have likely seized most of the town and raised flags in western and southern parts.",
+                            quote: "Russian forces took 26 months to advance 11 kilometers from the western boundary of Bakhmut to western Chasiv Yar.",
+                            analystComment: "The seizure opens several possible avenues for Russian forces to attack Ukraine's fortress belt, potentially through frontal assault on Kostyantynivka or expanding northwest toward Kramatorsk and Slovyansk.",
+                            source: "ISW Analysis",
                             aiProcessed: false
                         },
                         {
-                            title: "Industrial Infrastructure Monitoring Alert",
+                            title: "Mexican Cartels Exploiting Ukraine Conflict for Drone Technology",
                             category: "sabotage",
                             priority: "medium",
-                            summary: "Anomalous activity patterns detected across critical infrastructure monitoring networks, requiring enhanced vigilance protocols.",
-                            quote: "Preliminary indicators suggest coordinated reconnaissance activities targeting industrial control systems.",
-                            analystComment: "Recommend immediate review of access controls and enhanced monitoring of critical facility perimeters.",
-                            source: "Internal Monitoring",
+                            summary: "Intelligence analysts identified network of private security firms in Latin America coordinating placements for suspect individuals in Ukrainian training facilities to acquire military drone technology.",
+                            quote: "Ukraine has inadvertently become a platform for the global dissemination of FPV drone tactics, with individuals learning to use $400 drones to kill and then selling this knowledge elsewhere.",
+                            analystComment: "Ukrainian security services have implemented enhanced vetting procedures and cross-referenced Spanish-speaking volunteers with Interpol and US Drug Enforcement Administration databases.",
+                            source: "Intelligence Analysis",
                             aiProcessed: true
+                        },
+                        {
+                            title: "Russian Defense Industrial Incentives Program",
+                            category: "ukraine",
+                            priority: "medium",
+                            summary: "Russian government plans to allocate at least 765 billion rubles ($9.6 billion) for aircraft and helicopter production over six years, with tax incentives for dual-use drone manufacturers.",
+                            quote: "Zero VAT rate proposed for manufacturers of light dual-use aerial drones and imported components, valid through December 2027.",
+                            analystComment: "Strategic move to boost domestic defense production capabilities while reducing costs for critical military technologies.",
+                            source: "Economic Intelligence",
+                            aiProcessed: false
                         }
                     ]
                 };
@@ -685,15 +854,125 @@
                 const period = document.getElementById('reportPeriod').value || 'Current Week';
                 const classification = document.getElementById('classification').value || 'internal';
                 const threatLevel = document.getElementById('threatLevel').value || 'medium';
+                const focusRegion = document.getElementById('focusRegion').value || 'ukraine';
 
-                container.innerHTML = this.getReportTemplate(period, classification, threatLevel);
+                switch(this.selectedTemplate) {
+                    case 'risk':
+                        container.innerHTML = this.generateWeeklyRiskReport(period, classification, threatLevel, focusRegion);
+                        break;
+                    case 'weekly':
+                        container.innerHTML = this.getReportTemplate(period, classification, threatLevel);
+                        break;
+                    case 'executive':
+                        container.innerHTML = this.generateExecutiveSummary();
+                        break;
+                    case 'tactical':
+                        container.innerHTML = this.generateTacticalBrief();
+                        break;
+                    default:
+                        container.innerHTML = this.getReportTemplate(period, classification, threatLevel);
+                }
+                
                 this.updateSelectedItemsCount();
                 
                 // Initialize charts and maps after DOM is updated
                 setTimeout(() => {
-                    this.initializeCharts();
-                    this.initializeMap();
+                    if (this.selectedTemplate === 'weekly') {
+                        this.initializeCharts();
+                        this.initializeMap();
+                    }
                 }, 100);
+            },
+
+            generateWeeklyRiskReport(period, classification, threatLevel, focusRegion) {
+                const data = this.reportData;
+                const classificationText = classification.charAt(0).toUpperCase() + classification.slice(1).replace('_', ' ');
+                
+                // Group items by category for sections
+                const ukraineItems = data.items.filter(item => item.category === 'ukraine' || item.region?.toLowerCase().includes('ukraine'));
+                const sabotageItems = data.items.filter(item => item.category === 'sabotage');
+                const globalItems = data.items.filter(item => item.region === 'Global' || item.region === 'Russia' || item.source?.includes('Economic'));
+                
+                return `
+                    <div class="risk-report">
+                        <div class="risk-report-header">
+                            <div class="classification-header">
+                                <div class="classification-left">Corporate Security</div>
+                                <div class="classification-right">${classificationText.toUpperCase()}</div>
+                            </div>
+                            
+                            <div class="report-title-section">
+                                <div class="risk-report-title editable-content" contenteditable="true" data-field="title" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">${focusRegion.charAt(0).toUpperCase() + focusRegion.slice(1)} Risk Weekly</div>
+                                <div class="risk-report-subtitle">CORPORATE SECURITY</div>
+                                <div class="risk-report-date">${period}</div>
+                            </div>
+                        </div>
+
+                        <div class="section-divider">*****************************</div>
+
+                        <div class="risk-section">
+                            <div class="risk-section-title">MILITARY OPERATIONS & MOVEMENTS</div>
+                            ${this.generateRiskSectionContent(ukraineItems, 'military')}
+                        </div>
+
+                        <div class="risk-section">
+                            <div class="risk-section-title">STRATEGY & TACTICS</div>
+                            ${this.generateRiskSectionContent([...ukraineItems, ...globalItems], 'strategy')}
+                        </div>
+
+                        <div class="risk-section">
+                            <div class="risk-section-title">INFORMATION & POLITICAL WAR</div>
+                            ${this.generateRiskSectionContent(globalItems, 'information')}
+                        </div>
+
+                        <div class="risk-section">
+                            <div class="risk-section-title">GEOPOLITICAL DIMENSIONS</div>
+                            ${this.generateRiskSectionContent([...globalItems, ...sabotageItems], 'geopolitical')}
+                        </div>
+
+                        <div class="risk-section">
+                            <div class="risk-section-title">HUMANITARIAN & OCCUPATION ISSUES</div>
+                            ${this.generateRiskSectionContent(ukraineItems, 'humanitarian')}
+                        </div>
+
+                        <div style="margin-top: 40px; font-size: 11px; color: #666;">
+                            <div style="font-weight: 700; margin-bottom: 10px;">Sources</div>
+                            ${data.items.map(item => item.source).filter((source, index, self) => self.indexOf(source) === index).join(', ')}
+                        </div>
+                    </div>
+                `;
+            },
+
+            generateRiskSectionContent(items, sectionType) {
+                if (!items || items.length === 0) {
+                    return `
+                        <div class="risk-content">
+                            <div class="editable-content" contenteditable="true" data-section="${sectionType}" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
+                                No relevant intelligence items for this reporting period. Continue monitoring for emerging developments.
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return items.map(item => `
+                    <div class="risk-subsection">
+                        <div class="risk-subsection-title editable-content" contenteditable="true" data-field="subsection-title" style="border: 1px dashed #ccc; padding: 4px; border-radius: 4px;">${item.title}:</div>
+                        <div class="risk-content">
+                            <div class="editable-content" contenteditable="true" data-field="content" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
+                                ${item.summary} ${item.quote ? `"${item.quote}"` : ''} 
+                                ${item.analystComment ? `Assessment: ${item.analystComment}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            generateExecutiveSummary() {
+                return `<div style="text-align: center; padding: 50px;"><h2>Executive Summary Template</h2><p>High-level overview for leadership with key findings and strategic implications.</p></div>`;
+            },
+
+            generateTacticalBrief() {
+                return `<div style="text-align: center; padding: 50px;"><h2>Tactical Brief Template</h2><p>Operational-level intelligence for immediate tactical decision making.</p></div>`;
             },
 
             getReportTemplate(period, classification, threatLevel) {
@@ -743,7 +1022,7 @@
                     <div class="executive-summary">
                         <h2 class="summary-title">Executive Summary</h2>
                         <div contenteditable="true" class="editable-content" data-section="executive" style="border: 1px dashed #ccc; padding: 8px; border-radius: 4px;">
-                            <p style="margin-bottom: 16px;">${this.generateExecutiveSummary(data.items, threatLevel)}</p>
+                            <p style="margin-bottom: 16px;">${this.generateExecutiveSummaryText(data.items, threatLevel)}</p>
                         </div>
                         
                         <div class="summary-stats">
@@ -850,6 +1129,264 @@
                 `;
             },
 
+            // Export functions
+            async exportToWord() {
+                if (!this.reportData) {
+                    Persimmon.notifications.warning('No report data to export. Generate a report first.');
+                    return;
+                }
+
+                if (this.selectedTemplate !== 'risk') {
+                    Persimmon.notifications.warning('Word export is only available for Weekly Risk Report template.');
+                    return;
+                }
+
+                try {
+                    // Show loading state
+                    const button = document.getElementById('exportWordBtn');
+                    Persimmon.ui.setButtonLoading(button, true, 'Exporting...');
+
+                    // Check if docx library is available
+                    if (typeof docx === 'undefined') {
+                        throw new Error('docx library not loaded');
+                    }
+
+                    // Create document structure with proper docx syntax
+                    const doc = new docx.Document({
+                        sections: [{
+                            children: this.createWordDocumentContent()
+                        }]
+                    });
+
+                    // Generate and save the document
+                    const blob = await docx.Packer.toBlob(doc);
+                    const focusRegion = document.getElementById('focusRegion').value || 'ukraine';
+                    const filename = `${focusRegion}-risk-report-${new Date().toISOString().split('T')[0]}.docx`;
+                    
+                    // Check if saveAs is available
+                    if (typeof saveAs === 'undefined') {
+                        throw new Error('FileSaver library not loaded');
+                    }
+                    
+                    saveAs(blob, filename);
+                    
+                    Persimmon.ui.setButtonLoading(button, false);
+                    Persimmon.notifications.success(`Report exported to ${filename}`);
+                    
+                } catch (error) {
+                    console.error('Error exporting to Word:', error);
+                    const errorMessage = error.message || 'Unknown error occurred';
+                    Persimmon.notifications.error(`Failed to export Word document: ${errorMessage}`);
+                    Persimmon.ui.setButtonLoading(document.getElementById('exportWordBtn'), false);
+                }
+            },
+
+            createWordDocumentContent() {
+                const data = this.reportData;
+                const period = document.getElementById('reportPeriod').value || new Date().toLocaleDateString();
+                const classification = document.getElementById('classification').value || 'confidential';
+                const focusRegion = document.getElementById('focusRegion').value || 'ukraine';
+                
+                const ukraineItems = data.items.filter(item => item.category === 'ukraine' || item.region?.toLowerCase().includes('ukraine'));
+                const sabotageItems = data.items.filter(item => item.category === 'sabotage');
+                const globalItems = data.items.filter(item => item.region === 'Global' || item.region === 'Russia' || item.source?.includes('Economic'));
+
+                return [
+                    // Header
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "Corporate Security",
+                                size: 20
+                            }),
+                            new docx.TextRun({
+                                text: "\t\t\t\t\t\t\t\t\t\t",
+                            }),
+                            new docx.TextRun({
+                                text: classification.toUpperCase(),
+                                bold: true,
+                                color: "DC2626",
+                                size: 24
+                            })
+                        ],
+                        alignment: docx.AlignmentType.JUSTIFIED
+                    }),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Title Section
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: `${focusRegion.charAt(0).toUpperCase() + focusRegion.slice(1)} Risk Weekly`,
+                                bold: true,
+                                size: 48
+                            })
+                        ],
+                        alignment: docx.AlignmentType.CENTER
+                    }),
+                    
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "CORPORATE SECURITY",
+                                size: 20
+                            })
+                        ],
+                        alignment: docx.AlignmentType.CENTER
+                    }),
+                    
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: period,
+                                size: 20
+                            })
+                        ],
+                        alignment: docx.AlignmentType.CENTER
+                    }),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "*****************************",
+                                bold: true
+                            })
+                        ],
+                        alignment: docx.AlignmentType.CENTER
+                    }),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Military Operations Section
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "MILITARY OPERATIONS & MOVEMENTS",
+                                bold: true,
+                                color: "DC2626",
+                                size: 20
+                            })
+                        ]
+                    }),
+                    
+                    ...this.createWordSectionItems(ukraineItems),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Strategy & Tactics Section
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "STRATEGY & TACTICS",
+                                bold: true,
+                                color: "DC2626",
+                                size: 20
+                            })
+                        ]
+                    }),
+                    
+                    ...this.createWordSectionItems([...ukraineItems, ...globalItems]),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Information & Political War Section
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "INFORMATION & POLITICAL WAR",
+                                bold: true,
+                                color: "DC2626",
+                                size: 20
+                            })
+                        ]
+                    }),
+                    
+                    ...this.createWordSectionItems(globalItems),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Geopolitical Dimensions Section
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "GEOPOLITICAL DIMENSIONS",
+                                bold: true,
+                                color: "DC2626",
+                                size: 20
+                            })
+                        ]
+                    }),
+                    
+                    ...this.createWordSectionItems([...globalItems, ...sabotageItems]),
+                    
+                    new docx.Paragraph({ text: "" }), // Empty line
+                    
+                    // Sources
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: "Sources",
+                                bold: true,
+                                size: 18
+                            })
+                        ]
+                    }),
+                    
+                    new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: data.items.map(item => item.source).filter((source, index, self) => self.indexOf(source) === index).join(', '),
+                                size: 16
+                            })
+                        ]
+                    })
+                ];
+            },
+
+            createWordSectionItems(items) {
+                if (!items || items.length === 0) {
+                    return [
+                        new docx.Paragraph({
+                            children: [
+                                new docx.TextRun({
+                                    text: "• No relevant intelligence items for this reporting period. Continue monitoring for emerging developments.",
+                                    size: 18
+                                })
+                            ]
+                        })
+                    ];
+                }
+
+                const paragraphs = [];
+                
+                items.forEach(item => {
+                    // Item title as bullet point
+                    paragraphs.push(
+                        new docx.Paragraph({
+                            children: [
+                                new docx.TextRun({
+                                    text: `• ${item.title}: `,
+                                    bold: true,
+                                    size: 18
+                                }),
+                                new docx.TextRun({
+                                    text: `${item.summary} ${item.quote ? `"${item.quote}"` : ''} ${item.analystComment ? `Assessment: ${item.analystComment}` : ''}`,
+                                    size: 18
+                                })
+                            ],
+                            spacing: {
+                                after: 200
+                            }
+                        })
+                    );
+                });
+                
+                return paragraphs;
+            },
+
             // Utility functions
             calculateStats(items) {
                 return {
@@ -864,7 +1401,7 @@
                 };
             },
 
-            generateExecutiveSummary(items, threatLevel) {
+            generateExecutiveSummaryText(items, threatLevel) {
                 const stats = this.calculateStats(items);
                 const categories = [];
                 if (stats.ukraine > 0) categories.push(`${stats.ukraine} Ukraine-related`);
@@ -929,6 +1466,7 @@
                     template: this.selectedTemplate,
                     period: document.getElementById('reportPeriod').value,
                     classification: document.getElementById('classification').value,
+                    focusRegion: document.getElementById('focusRegion').value,
                     threatLevel: document.getElementById('threatLevel').value,
                     savedAt: new Date().toISOString()
                 };

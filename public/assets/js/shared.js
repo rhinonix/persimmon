@@ -442,6 +442,7 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
         if (path.includes("feed.html")) currentPage = "feed";
         else if (path.includes("processor.html")) currentPage = "processor";
         else if (path.includes("reports.html")) currentPage = "reports";
+        else if (path.includes("about.html")) currentPage = "about";
       }
 
       return `
