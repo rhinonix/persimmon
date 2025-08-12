@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weekly Reports - Persimmon Intelligence</title>
-    <link rel="stylesheet" href="./assets/css/main.css">
+    <link rel="stylesheet" href="../assets/css/main.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <!-- Add docx generation library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <style>
         /* Reports-specific styles */
         .report-builder {
@@ -665,8 +665,8 @@
     </div>
 
     <!-- Include shared utilities first -->
-    <script src="./assets/js/shared.js"></script>
-    <script src="./assets/js/auth.js"></script>
+    <script src="../assets/js/shared.js"></script>
+    <script src="../scripts/auth.js"></script>
     
     <!-- Reports-specific functionality -->
     <script>
@@ -1146,10 +1146,14 @@
                     const button = document.getElementById('exportWordBtn');
                     Persimmon.ui.setButtonLoading(button, true, 'Exporting...');
 
-                    // Create document structure
+                    // Check if docx library is available
+                    if (typeof docx === 'undefined') {
+                        throw new Error('docx library not loaded');
+                    }
+
+                    // Create document structure with proper docx syntax
                     const doc = new docx.Document({
                         sections: [{
-                            properties: {},
                             children: this.createWordDocumentContent()
                         }]
                     });
@@ -1159,6 +1163,11 @@
                     const focusRegion = document.getElementById('focusRegion').value || 'ukraine';
                     const filename = `${focusRegion}-risk-report-${new Date().toISOString().split('T')[0]}.docx`;
                     
+                    // Check if saveAs is available
+                    if (typeof saveAs === 'undefined') {
+                        throw new Error('FileSaver library not loaded');
+                    }
+                    
                     saveAs(blob, filename);
                     
                     Persimmon.ui.setButtonLoading(button, false);
@@ -1166,7 +1175,8 @@
                     
                 } catch (error) {
                     console.error('Error exporting to Word:', error);
-                    Persimmon.notifications.error('Failed to export Word document');
+                    const errorMessage = error.message || 'Unknown error occurred';
+                    Persimmon.notifications.error(`Failed to export Word document: ${errorMessage}`);
                     Persimmon.ui.setButtonLoading(document.getElementById('exportWordBtn'), false);
                 }
             },
