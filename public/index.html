@@ -590,81 +590,46 @@
                     }
                 }
                 
-                // Fallback to mock data
-                const activities = [
-                    {
-                        type: 'processing',
-                        icon: 'AI',
-                        title: 'AI Analysis Completed',
-                        description: '23 new items processed from Liferaft CSV export',
-                        time: '2 minutes ago'
-                    },
-                    {
-                        type: 'feed',
-                        icon: 'FEED',
-                        title: 'Intelligence Items Added',
-                        description: '5 high-priority items added to feed for review',
-                        time: '15 minutes ago'
-                    },
-                    {
-                        type: 'report',
-                        icon: 'RPT',
-                        title: 'Weekly Report Generated',
-                        description: 'Executive briefing compiled with 12 intelligence items',
-                        time: '1 hour ago'
-                    },
-                    {
-                        type: 'processing',
-                        icon: 'SRC',
-                        title: 'New Data Source Added',
-                        description: 'RSS feed configured for regional security updates',
-                        time: '3 hours ago'
-                    },
-                    {
-                        type: 'feed',
-                        icon: 'ALRT',
-                        title: 'High Priority Alert',
-                        description: 'Critical infrastructure threat detected and flagged',
-                        time: '6 hours ago'
-                    }
-                ];
-                
-                container.innerHTML = activities.map(activity => `
-                    <div class="activity-item">
-                        <div class="activity-icon activity-${activity.type}">
-                            ${activity.icon}
-                        </div>
-                        <div class="activity-content">
-                            <div class="activity-title">${activity.title}</div>
-                            <div class="activity-description">${activity.description}</div>
-                        </div>
-                        <div class="activity-time">${activity.time}</div>
+                // Show empty state - no placeholder data
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                        <div style="font-size: 14px; margin-bottom: 8px;">No recent activity</div>
+                        <div style="font-size: 12px;">Activity will appear here as you use the platform</div>
                     </div>
-                `).join('');
+                `;
             },
 
             async updateStats() {
+                // Show loading state
+                Persimmon.ui.updateText('totalItems', '...');
+                Persimmon.ui.updateText('processed', '...');
+                Persimmon.ui.updateText('highPriority', '...');
+                Persimmon.ui.updateText('sources', '...');
+                
                 if (this.usingDatabase && PersimmonDB) {
                     try {
                         const stats = await PersimmonDB.getDashboardStats();
                         
-                        Persimmon.ui.updateText('totalItems', stats.totalItems);
-                        Persimmon.ui.updateText('processed', stats.aiProcessed);
-                        Persimmon.ui.updateText('highPriority', stats.highPriority);
-                        Persimmon.ui.updateText('sources', stats.activeSources);
+                        Persimmon.ui.updateText('totalItems', stats.totalItems || 0);
+                        Persimmon.ui.updateText('processed', stats.aiProcessed || 0);
+                        Persimmon.ui.updateText('highPriority', stats.highPriority || 0);
+                        Persimmon.ui.updateText('sources', stats.activeSources || 0);
+                        
+                        // Show database status
+                        console.log('Dashboard stats loaded from database:', stats);
                         return;
                     } catch (error) {
                         console.error('Error loading stats from database:', error);
                     }
                 }
                 
-                // Fallback to mock stats with variation
-                const stats = this.calculateStats();
+                // No fallback - show empty state
+                Persimmon.ui.updateText('totalItems', '-');
+                Persimmon.ui.updateText('processed', '-');
+                Persimmon.ui.updateText('highPriority', '-');
+                Persimmon.ui.updateText('sources', '-');
                 
-                Persimmon.ui.updateText('totalItems', stats.total);
-                Persimmon.ui.updateText('processed', stats.aiProcessed);
-                Persimmon.ui.updateText('highPriority', stats.highPriority);
-                Persimmon.ui.updateText('sources', stats.activeSources);
+                console.log('Dashboard: Database unavailable, showing empty state');
             },
 
             calculateStats() {
