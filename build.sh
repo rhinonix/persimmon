@@ -51,10 +51,20 @@ if [ -f "$AUTH_SRC" ]; then
         SUPABASE_ANON_KEY_VALUE="$SUPABASE_ANON_KEY"
     fi
     
+    # Check Claude API key
+    if [ -z "$CLAUDE_API_KEY" ]; then
+        echo "Warning: CLAUDE_API_KEY environment variable not set."
+        echo "Using placeholder value. Set this in Netlify environment variables for real AI processing."
+        CLAUDE_API_KEY_VALUE="your-claude-api-key-here"
+    else
+        CLAUDE_API_KEY_VALUE="$CLAUDE_API_KEY"
+    fi
+    
     # Use a temporary file to avoid issues with sed on different systems
     TMP_FILE=$(mktemp)
     sed -e "s|__SUPABASE_URL__|$SUPABASE_URL_VALUE|g" \
         -e "s|__SUPABASE_ANON_KEY__|$SUPABASE_ANON_KEY_VALUE|g" \
+        -e "s|__CLAUDE_API_KEY__|$CLAUDE_API_KEY_VALUE|g" \
         "$AUTH_SRC" > "$TMP_FILE" && mv "$TMP_FILE" "$AUTH_DEST"
     
     echo "Auth.js processed successfully"

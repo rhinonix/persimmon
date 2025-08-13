@@ -11,6 +11,7 @@ const PersimmonAuth = {
   // These values will be replaced by the build script with Netlify environment variables
   SUPABASE_URL: "__SUPABASE_URL__",
   SUPABASE_ANON_KEY: "__SUPABASE_ANON_KEY__",
+  CLAUDE_API_KEY: "__CLAUDE_API_KEY__",
 
   // --- Initialization ---
   init() {
@@ -38,6 +39,11 @@ const PersimmonAuth = {
       // Initialize database service with Supabase client
       if (typeof PersimmonDB !== "undefined") {
         PersimmonDB.init(this.supabase);
+      }
+
+      // Initialize AI service
+      if (typeof Persimmon !== "undefined" && Persimmon.api) {
+        Persimmon.api.init(this.CLAUDE_API_KEY);
       }
 
       // Check authentication state on page load

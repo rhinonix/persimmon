@@ -94,89 +94,103 @@ const Persimmon = {
     },
   },
 
-  // API management
+  // API management - Enhanced with Claude service integration
   api: {
-    claudeApiKey: "your-claude-api-key-here", // Replace with your actual API key
-
-    async processWithClaude(content, source = "") {
-      if (
-        !this.claudeApiKey ||
-        this.claudeApiKey === "your-claude-api-key-here"
-      ) {
-        console.warn("Claude API key not configured, using mock analysis");
-        return this.mockAnalysis(content);
-      }
-
-      const prompt = `You are an intelligence analyst for corporate security. Analyze the following content against these Priority Intelligence Requirements (PIRs):
-
-1. UKRAINE - Frontline movements, political developments, strategic shifts
-2. INDUSTRIAL SABOTAGE - Infrastructure attacks, facility threats (focus Eurasia)  
-3. INSIDER THREATS - Employee security, background check issues
-
-Content to analyze:
-"${content}"
-
-Source: ${source}
-
-Respond with a JSON object containing:
-{
-    "relevant": true/false,
-    "category": "ukraine" | "sabotage" | "insider" | "none",
-    "priority": "high" | "medium" | "low",
-    "confidence": 0-100,
-    "title": "Clear, concise title for intelligence feed",
-    "summary": "2-3 sentence summary for analysts",
-    "quote": "Most relevant quote from original content (if applicable)",
-    "reasoning": "Brief explanation of categorization"
-}
-
-Only mark as relevant if it directly relates to one of our PIRs. Be conservative - it's better to reject marginally relevant items.`;
-
-      try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": this.claudeApiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: "claude-3-sonnet-20240229",
-            max_tokens: 1000,
-            messages: [
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `Claude API error: ${response.status} ${response.statusText}`
-          );
-        }
-
-        const data = await response.json();
-        const analysisText = data.content[0].text;
-
-        // Extract JSON from response (Claude sometimes adds explanation)
-        const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("Could not parse Claude response as JSON");
-        }
-      } catch (error) {
-        console.error("Claude API error:", error);
-        Persimmon.notifications.error(`Claude API error: ${error.message}`);
-        // Fallback to mock analysis if API fails
-        return this.mockAnalysis(content);
+    // Initialize API services
+    init(aiApiKey) {
+      // Initialize AI service if available
+      if (typeof PersimmonAI !== "undefined") {
+        PersimmonAI.init(aiApiKey);
+        console.log("Persimmon API services initialized");
+      } else {
+        console.warn("PersimmonAI service not loaded");
       }
     },
 
-    mockAnalysis(content) {
+    // Main processing function - now uses dedicated AI service
+    async processWithAI(content, source = "", metadata = {}) {
+      try {
+        // Use dedicated AI service if available
+        if (typeof PersimmonAI !== "undefined" && PersimmonAI.isAvailable()) {
+          return await PersimmonAI.analyzeContent(content, source, metadata);
+        } else {
+          console.warn("AI service not available, using mock analysis");
+          return await this.mockAnalysis(content, source, metadata);
+        }
+      } catch (error) {
+        console.error("Processing error:", error);
+        Persimmon.notifications.error(`Processing failed: ${error.message}`);
+        // Fallback to mock analysis on error
+        return await this.mockAnalysis(content, source, metadata);
+      }
+    },
+
+    // Backward compatibility alias
+    async processWithClaude(content, source = "", metadata = {}) {
+      return await this.processWithAI(content, source, metadata);
+    },
+
+    // Batch processing function
+    async processBatch(items, onProgress = null) {
+      const results = [];
+      const total = items.length;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        try {
+          const analysis = await this.processWithClaude(
+            item.content,
+            item.source || `Item ${i + 1}`,
+            item.metadata || {}
+          );
+
+          results.push({
+            ...item,
+            analysis: analysis,
+            processed: true,
+            error: null,
+          });
+
+          if (onProgress) {
+            onProgress(i + 1, total, analysis);
+          }
+        } catch (error) {
+          console.error(`Failed to process item ${i + 1}:`, error);
+
+          results.push({
+            ...item,
+            analysis: null,
+            processed: false,
+            error: error.message,
+          });
+
+          if (onProgress) {
+            onProgress(i + 1, total, null, error);
+          }
+        }
+
+        // Small delay between items to prevent overwhelming the API
+        if (i < items.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+
+      return results;
+    },
+
+    // Get processing queue status
+    getQueueStatus() {
+      if (typeof PersimmonAI !== "undefined") {
+        return PersimmonAI.getQueueStatus();
+      }
+      return { queueLength: 0, isProcessing: false };
+    },
+
+    // Enhanced mock analysis with better categorization
+    async mockAnalysis(content, source = "", metadata = {}) {
+      console.log("Using enhanced mock analysis");
+
       // Fallback keyword-based analysis for testing without API key
       const keywords = {
         ukraine: [
@@ -191,6 +205,14 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
           "kyiv",
           "donetsk",
           "luhansk",
+          "kramatorsk",
+          "mariupol",
+          "russian",
+          "forces",
+          "offensive",
+          "defense",
+          "territorial",
+          "gains",
         ],
         sabotage: [
           "sabotage",
@@ -203,6 +225,14 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
           "grid",
           "scada",
           "pipeline",
+          "energy",
+          "critical",
+          "vulnerability",
+          "malware",
+          "breach",
+          "disruption",
+          "operational",
+          "technology",
         ],
         insider: [
           "employee",
@@ -215,39 +245,136 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
           "leak",
           "staff",
           "personnel",
+          "internal",
+          "unauthorized",
+          "credentials",
+          "privilege",
+          "escalation",
+          "whistleblower",
         ],
       };
 
       const lowerContent = content.toLowerCase();
       let bestCategory = "none";
       let maxScore = 0;
+      let matchedKeywords = [];
 
       for (const [category, words] of Object.entries(keywords)) {
-        const score = words.filter((word) =>
-          lowerContent.includes(word)
-        ).length;
+        const matches = words.filter((word) => lowerContent.includes(word));
+        const score = matches.length;
+
         if (score > maxScore) {
           maxScore = score;
           bestCategory = category;
+          matchedKeywords = matches;
         }
       }
 
       const relevant = maxScore > 0;
-      const priority = maxScore > 2 ? "high" : maxScore > 1 ? "medium" : "low";
-      const confidence = Math.min(60 + maxScore * 15, 95);
+      const priority = maxScore > 3 ? "high" : maxScore > 1 ? "medium" : "low";
+      const confidence = Math.min(50 + maxScore * 12, 90); // Lower confidence for mock
+
+      // Generate better title and summary
+      const title = this.generateMockTitle(
+        content,
+        bestCategory,
+        matchedKeywords
+      );
+      const summary = this.generateMockSummary(
+        content,
+        bestCategory,
+        maxScore,
+        relevant
+      );
+      const quote = this.extractMockQuote(content, matchedKeywords);
+      const tags = this.generateMockTags(
+        bestCategory,
+        matchedKeywords,
+        lowerContent
+      );
 
       return {
         relevant: relevant,
         category: bestCategory,
         priority: priority,
         confidence: confidence,
-        title: Persimmon.utils.truncate(content, 80),
-        summary: `Mock analysis found ${maxScore} PIR keywords. ${
-          relevant ? "Flagged for review." : "No significant matches."
-        }`,
-        quote: "",
-        reasoning: `Matched ${maxScore} keywords for ${bestCategory} category`,
+        title: title,
+        summary: summary,
+        quote: quote,
+        reasoning: `Mock analysis: ${maxScore} keyword matches for ${bestCategory}. Keywords: ${matchedKeywords
+          .slice(0, 3)
+          .join(", ")}`,
+        tags: tags,
+        source: source,
+        metadata: metadata,
       };
+    },
+
+    // Helper functions for mock analysis
+    generateMockTitle(content, category, keywords) {
+      const contentWords = content.split(" ").slice(0, 12).join(" ");
+      const categoryPrefix = {
+        ukraine: "Ukraine: ",
+        sabotage: "Infrastructure: ",
+        insider: "Personnel: ",
+        none: "General: ",
+      };
+
+      return Persimmon.utils.truncate(
+        (categoryPrefix[category] || "") + contentWords,
+        75
+      );
+    },
+
+    generateMockSummary(content, category, score, relevant) {
+      if (!relevant) {
+        return "Content does not match current PIR criteria. No significant intelligence value identified.";
+      }
+
+      const categoryContext = {
+        ukraine: "potential military or political development",
+        sabotage: "possible infrastructure or security threat",
+        insider: "internal security or personnel concern",
+      };
+
+      return `Mock analysis identified ${
+        categoryContext[category] || "intelligence item"
+      } with ${score} keyword matches. Requires analyst review for verification.`;
+    },
+
+    extractMockQuote(content, keywords) {
+      if (keywords.length === 0) return "";
+
+      // Find sentence containing the first matched keyword
+      const sentences = content.split(/[.!?]+/);
+      const keyword = keywords[0];
+
+      for (const sentence of sentences) {
+        if (sentence.toLowerCase().includes(keyword)) {
+          return Persimmon.utils.truncate(sentence.trim(), 140);
+        }
+      }
+
+      return "";
+    },
+
+    generateMockTags(category, keywords, content) {
+      const baseTags = {
+        ukraine: ["conflict", "geopolitical"],
+        sabotage: ["infrastructure", "threat"],
+        insider: ["personnel", "security"],
+        none: ["general"],
+      };
+
+      const tags = [...(baseTags[category] || baseTags.none)];
+
+      // Add contextual tags
+      if (content.includes("cyber")) tags.push("cyber");
+      if (content.includes("critical")) tags.push("critical");
+      if (content.includes("europe")) tags.push("europe");
+      if (keywords.length > 2) tags.push("high-relevance");
+
+      return tags.slice(0, 4);
     },
   },
 
