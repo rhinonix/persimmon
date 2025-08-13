@@ -319,6 +319,75 @@
         .status-processing { color: var(--persimmon-orange); }
         .status-pending { color: var(--warning-amber); }
         
+        /* Loading States - Linear Design Aesthetic */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-white) 50%, var(--bg-secondary) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .stat-loading {
+            width: 60px;
+            height: 32px;
+            margin: 0 auto 4px;
+        }
+        
+        .activity-loading {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .activity-loading:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-icon-loading {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .activity-content-loading {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .activity-title-loading {
+            width: 140px;
+            height: 14px;
+        }
+        
+        .activity-description-loading {
+            width: 200px;
+            height: 12px;
+        }
+        
+        .activity-time-loading {
+            width: 60px;
+            height: 10px;
+            align-self: flex-start;
+        }
+        
+        /* Fade in animation for loaded content */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -561,28 +630,34 @@
             async renderRecentActivity() {
                 const container = document.getElementById('recent-activity');
                 
+                // Show loading skeleton immediately
+                this.showActivityLoading();
+                
                 if (this.usingDatabase && PersimmonDB) {
                     try {
                         const activities = await PersimmonDB.getRecentActivity(5);
                         
                         if (activities.length > 0) {
-                            container.innerHTML = activities.map(activity => {
-                                const activityType = this.getActivityType(activity.action);
-                                const activityIcon = this.getActivityIcon(activity.action);
-                                
-                                return `
-                                    <div class="activity-item">
-                                        <div class="activity-icon activity-${activityType}">
-                                            ${activityIcon}
+                            // Add fade-in animation after loading
+                            setTimeout(() => {
+                                container.innerHTML = activities.map(activity => {
+                                    const activityType = this.getActivityType(activity.action);
+                                    const activityIcon = this.getActivityIcon(activity.action);
+                                    
+                                    return `
+                                        <div class="activity-item fade-in">
+                                            <div class="activity-icon activity-${activityType}">
+                                                ${activityIcon}
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-title">${this.getActivityTitle(activity.action)}</div>
+                                                <div class="activity-description">${activity.description}</div>
+                                            </div>
+                                            <div class="activity-time">${PersimmonDB.formatTimeAgo(activity.created_at)}</div>
                                         </div>
-                                        <div class="activity-content">
-                                            <div class="activity-title">${this.getActivityTitle(activity.action)}</div>
-                                            <div class="activity-description">${activity.description}</div>
-                                        </div>
-                                        <div class="activity-time">${PersimmonDB.formatTimeAgo(activity.created_at)}</div>
-                                    </div>
-                                `;
-                            }).join('');
+                                    `;
+                                }).join('');
+                            }, 200);
                             return;
                         }
                     } catch (error) {
@@ -590,32 +665,59 @@
                     }
                 }
                 
-                // Show empty state - no placeholder data
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
-                        <div style="font-size: 14px; margin-bottom: 8px;">No recent activity</div>
-                        <div style="font-size: 12px;">Activity will appear here as you use the platform</div>
+                // Show empty state after brief loading period
+                setTimeout(() => {
+                    container.innerHTML = `
+                        <div class="fade-in" style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                            <div style="font-size: 14px; margin-bottom: 8px;">No recent activity</div>
+                            <div style="font-size: 12px;">Activity will appear here as you use the platform</div>
+                        </div>
+                    `;
+                }, 300);
+            },
+
+            showStatsLoading() {
+                // Show skeleton loading for stats
+                ['totalItems', 'processed', 'highPriority', 'sources'].forEach(id => {
+                    const element = document.getElementById(id);
+                    element.innerHTML = '<div class="loading-skeleton stat-loading"></div>';
+                });
+            },
+
+            showActivityLoading() {
+                // Show skeleton loading for activity
+                const container = document.getElementById('recent-activity');
+                container.innerHTML = Array(3).fill(0).map(() => `
+                    <div class="activity-loading">
+                        <div class="loading-skeleton activity-icon-loading"></div>
+                        <div class="activity-content-loading">
+                            <div class="loading-skeleton activity-title-loading"></div>
+                            <div class="loading-skeleton activity-description-loading"></div>
+                        </div>
+                        <div class="loading-skeleton activity-time-loading"></div>
                     </div>
-                `;
+                `).join('');
             },
 
             async updateStats() {
-                // Show loading state
-                Persimmon.ui.updateText('totalItems', '...');
-                Persimmon.ui.updateText('processed', '...');
-                Persimmon.ui.updateText('highPriority', '...');
-                Persimmon.ui.updateText('sources', '...');
+                // Show loading skeletons immediately
+                this.showStatsLoading();
                 
                 if (this.usingDatabase && PersimmonDB) {
                     try {
                         const stats = await PersimmonDB.getDashboardStats();
                         
-                        Persimmon.ui.updateText('totalItems', stats.totalItems || 0);
-                        Persimmon.ui.updateText('processed', stats.aiProcessed || 0);
-                        Persimmon.ui.updateText('highPriority', stats.highPriority || 0);
-                        Persimmon.ui.updateText('sources', stats.activeSources || 0);
+                        // Update with real data and add fade-in animation
+                        ['totalItems', 'processed', 'highPriority', 'sources'].forEach((id, index) => {
+                            const element = document.getElementById(id);
+                            const values = [stats.totalItems || 0, stats.aiProcessed || 0, stats.highPriority || 0, stats.activeSources || 0];
+                            
+                            setTimeout(() => {
+                                element.innerHTML = values[index];
+                                element.classList.add('fade-in');
+                            }, 100 + (index * 50)); // Stagger the animations
+                        });
                         
-                        // Show database status
                         console.log('Dashboard stats loaded from database:', stats);
                         return;
                     } catch (error) {
@@ -624,10 +726,15 @@
                 }
                 
                 // No fallback - show empty state
-                Persimmon.ui.updateText('totalItems', '-');
-                Persimmon.ui.updateText('processed', '-');
-                Persimmon.ui.updateText('highPriority', '-');
-                Persimmon.ui.updateText('sources', '-');
+                setTimeout(() => {
+                    ['totalItems', 'processed', 'highPriority', 'sources'].forEach((id, index) => {
+                        const element = document.getElementById(id);
+                        setTimeout(() => {
+                            element.innerHTML = '-';
+                            element.classList.add('fade-in');
+                        }, 100 + (index * 50));
+                    });
+                }, 300); // Brief delay to show loading state
                 
                 console.log('Dashboard: Database unavailable, showing empty state');
             },
