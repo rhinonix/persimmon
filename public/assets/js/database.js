@@ -30,19 +30,61 @@ const PersimmonDB = {
     console.log("Persimmon Database Service initialized");
   },
 
-  // Cache utility methods
+  // Cache utility methods with localStorage persistence
   isCacheValid(key) {
-    if (!this.cache[key] || !this.cache.timestamps[key]) {
-      return false;
+    try {
+      // Check memory cache first
+      if (this.cache[key] && this.cache.timestamps[key]) {
+        const age = Date.now() - this.cache.timestamps[key];
+        if (age < this.cacheConfig[key]) {
+          return true;
+        }
+      }
+
+      // Check localStorage cache
+      const stored = localStorage.getItem(`persimmon_cache_${key}`);
+      const storedTimestamp = localStorage.getItem(
+        `persimmon_cache_${key}_timestamp`
+      );
+
+      if (stored && storedTimestamp) {
+        const age = Date.now() - parseInt(storedTimestamp);
+        if (age < this.cacheConfig[key]) {
+          // Restore to memory cache
+          this.cache[key] = JSON.parse(stored);
+          this.cache.timestamps[key] = parseInt(storedTimestamp);
+          return true;
+        } else {
+          // Expired - clean up localStorage
+          localStorage.removeItem(`persimmon_cache_${key}`);
+          localStorage.removeItem(`persimmon_cache_${key}_timestamp`);
+        }
+      }
+    } catch (error) {
+      console.warn(`Cache validation error for ${key}:`, error);
     }
-    const age = Date.now() - this.cache.timestamps[key];
-    return age < this.cacheConfig[key];
+
+    return false;
   },
 
   setCache(key, data) {
-    this.cache[key] = data;
-    this.cache.timestamps[key] = Date.now();
-    console.log(`Cache updated: ${key}`);
+    try {
+      // Set in memory cache
+      this.cache[key] = data;
+      this.cache.timestamps[key] = Date.now();
+
+      // Persist to localStorage
+      localStorage.setItem(`persimmon_cache_${key}`, JSON.stringify(data));
+      localStorage.setItem(
+        `persimmon_cache_${key}_timestamp`,
+        this.cache.timestamps[key].toString()
+      );
+
+      console.log(`Cache updated: ${key}`);
+    } catch (error) {
+      console.warn(`Cache storage error for ${key}:`, error);
+      // Continue with memory-only cache if localStorage fails
+    }
   },
 
   getCache(key) {
@@ -55,20 +97,36 @@ const PersimmonDB = {
   },
 
   clearCache(key = null) {
-    if (key) {
-      this.cache[key] = null;
-      delete this.cache.timestamps[key];
-      console.log(`Cache cleared: ${key}`);
-    } else {
-      // Clear all cache
-      this.cache = {
-        dashboardStats: null,
-        recentActivity: null,
-        pirCoverage: null,
-        systemMetrics: null,
-        timestamps: {},
-      };
-      console.log("All cache cleared");
+    try {
+      if (key) {
+        // Clear specific cache
+        this.cache[key] = null;
+        delete this.cache.timestamps[key];
+        localStorage.removeItem(`persimmon_cache_${key}`);
+        localStorage.removeItem(`persimmon_cache_${key}_timestamp`);
+        console.log(`Cache cleared: ${key}`);
+      } else {
+        // Clear all cache
+        this.cache = {
+          dashboardStats: null,
+          recentActivity: null,
+          pirCoverage: null,
+          systemMetrics: null,
+          timestamps: {},
+        };
+
+        // Clear all persimmon cache items from localStorage
+        const keys = Object.keys(localStorage);
+        keys.forEach((storageKey) => {
+          if (storageKey.startsWith("persimmon_cache_")) {
+            localStorage.removeItem(storageKey);
+          }
+        });
+
+        console.log("All cache cleared");
+      }
+    } catch (error) {
+      console.warn("Cache clearing error:", error);
     }
   },
 
