@@ -701,54 +701,30 @@
 
             async updateStats() {
                 if (this.usingDatabase && PersimmonDB) {
-                    // Check if we have cached data first
-                    const cachedStats = PersimmonDB.getCache('dashboardStats');
-                    
-                    if (cachedStats) {
-                        // Show cached data immediately - no loading skeleton needed
-                        console.log('Dashboard: Using cached stats');
+                    try {
+                        // Get stats using the main method which handles caching properly
+                        const stats = await PersimmonDB.getDashboardStats();
+                        
+                        console.log('Dashboard: Stats loaded', stats);
                         const statTypes = [
-                            { id: 'totalItems', value: cachedStats.totalItems },
-                            { id: 'processed', value: cachedStats.aiProcessed },
-                            { id: 'highPriority', value: cachedStats.highPriority },
-                            { id: 'sources', value: cachedStats.activeSources }
+                            { id: 'totalItems', value: stats.totalItems },
+                            { id: 'processed', value: stats.aiProcessed },
+                            { id: 'highPriority', value: stats.highPriority },
+                            { id: 'sources', value: stats.activeSources }
                         ];
                         
                         statTypes.forEach((stat, index) => {
                             const element = document.getElementById(stat.id);
-                            // Immediate update with cached data
+                            // Quick stagger for smooth appearance
                             setTimeout(() => {
                                 element.innerHTML = stat.value;
                                 element.classList.add('fade-in');
-                            }, index * 25); // Quick stagger for smooth appearance
+                            }, index * 25);
                         });
                         return;
+                    } catch (error) {
+                        console.error('Error loading dashboard stats:', error);
                     }
-                    
-                    // No cache - show loading and fetch data
-                    console.log('Dashboard: No cache, loading from database');
-                    this.showStatsLoading();
-                    
-                    // Load each stat individually as soon as it's available
-                    const statTypes = [
-                        { id: 'totalItems', type: 'totalItems' },
-                        { id: 'processed', type: 'aiProcessed' },
-                        { id: 'highPriority', type: 'highPriority' },
-                        { id: 'sources', type: 'activeSources' }
-                    ];
-                    
-                    // Start all queries simultaneously, update UI as each completes
-                    statTypes.forEach((stat, index) => {
-                        PersimmonDB.getDashboardStatIndividual(stat.type, (value) => {
-                            const element = document.getElementById(stat.id);
-                            // Small delay to show loading state briefly, then stagger updates
-                            setTimeout(() => {
-                                element.innerHTML = value;
-                                element.classList.add('fade-in');
-                            }, 150 + (index * 25)); // Faster stagger since queries are parallel
-                        });
-                    });
-                    return;
                 }
                 
                 // No database - show empty state
