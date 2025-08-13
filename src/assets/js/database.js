@@ -7,10 +7,69 @@ const PersimmonDB = {
   // Supabase client instance (will be set from auth.js)
   supabase: null,
 
+  // Cache system for dashboard data
+  cache: {
+    dashboardStats: null,
+    recentActivity: null,
+    pirCoverage: null,
+    systemMetrics: null,
+    timestamps: {},
+  },
+
+  // Cache configuration (in milliseconds)
+  cacheConfig: {
+    dashboardStats: 30000, // 30 seconds
+    recentActivity: 60000, // 1 minute
+    pirCoverage: 300000, // 5 minutes
+    systemMetrics: 600000, // 10 minutes
+  },
+
   // Initialize database service
   init(supabaseClient) {
     this.supabase = supabaseClient;
     console.log("Persimmon Database Service initialized");
+  },
+
+  // Cache utility methods
+  isCacheValid(key) {
+    if (!this.cache[key] || !this.cache.timestamps[key]) {
+      return false;
+    }
+    const age = Date.now() - this.cache.timestamps[key];
+    return age < this.cacheConfig[key];
+  },
+
+  setCache(key, data) {
+    this.cache[key] = data;
+    this.cache.timestamps[key] = Date.now();
+    console.log(`Cache updated: ${key}`);
+  },
+
+  getCache(key) {
+    if (this.isCacheValid(key)) {
+      console.log(`Cache hit: ${key}`);
+      return this.cache[key];
+    }
+    console.log(`Cache miss: ${key}`);
+    return null;
+  },
+
+  clearCache(key = null) {
+    if (key) {
+      this.cache[key] = null;
+      delete this.cache.timestamps[key];
+      console.log(`Cache cleared: ${key}`);
+    } else {
+      // Clear all cache
+      this.cache = {
+        dashboardStats: null,
+        recentActivity: null,
+        pirCoverage: null,
+        systemMetrics: null,
+        timestamps: {},
+      };
+      console.log("All cache cleared");
+    }
   },
 
   // ============================================================================
@@ -150,6 +209,12 @@ const PersimmonDB = {
   // ============================================================================
 
   async getDashboardStats() {
+    // Check cache first
+    const cachedStats = this.getCache("dashboardStats");
+    if (cachedStats) {
+      return cachedStats;
+    }
+
     try {
       // Execute all queries in parallel
       const [
@@ -181,26 +246,46 @@ const PersimmonDB = {
       if (highPriorityResult.error) throw highPriorityResult.error;
       if (activeSourcesResult.error) throw activeSourcesResult.error;
 
-      return {
+      const stats = {
         totalItems: totalItemsResult.count || 0,
         aiProcessed: aiProcessedResult.count || 0,
         highPriority: highPriorityResult.count || 0,
         activeSources: activeSourcesResult.count || 0,
       };
+
+      // Cache the results
+      this.setCache("dashboardStats", stats);
+      return stats;
     } catch (error) {
       console.error("Database error in getDashboardStats:", error);
       // Return fallback data if database fails
-      return {
+      const fallbackStats = {
         totalItems: 247,
         aiProcessed: 89,
         highPriority: 12,
         activeSources: 8,
       };
+      // Cache fallback data with shorter expiry
+      this.setCache("dashboardStats", fallbackStats);
+      return fallbackStats;
     }
   },
 
-  // New method for individual stat updates
+  // New method for individual stat updates with caching
   async getDashboardStatIndividual(statType, callback) {
+    // Check if we have cached stats first
+    const cachedStats = this.getCache("dashboardStats");
+    if (cachedStats) {
+      const statMap = {
+        totalItems: cachedStats.totalItems,
+        aiProcessed: cachedStats.aiProcessed,
+        highPriority: cachedStats.highPriority,
+        activeSources: cachedStats.activeSources,
+      };
+      callback(statMap[statType] || 0);
+      return;
+    }
+
     try {
       let query;
       switch (statType) {

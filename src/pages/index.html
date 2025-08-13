@@ -700,10 +700,35 @@
             },
 
             async updateStats() {
-                // Show loading skeletons immediately
-                this.showStatsLoading();
-                
                 if (this.usingDatabase && PersimmonDB) {
+                    // Check if we have cached data first
+                    const cachedStats = PersimmonDB.getCache('dashboardStats');
+                    
+                    if (cachedStats) {
+                        // Show cached data immediately - no loading skeleton needed
+                        console.log('Dashboard: Using cached stats');
+                        const statTypes = [
+                            { id: 'totalItems', value: cachedStats.totalItems },
+                            { id: 'processed', value: cachedStats.aiProcessed },
+                            { id: 'highPriority', value: cachedStats.highPriority },
+                            { id: 'sources', value: cachedStats.activeSources }
+                        ];
+                        
+                        statTypes.forEach((stat, index) => {
+                            const element = document.getElementById(stat.id);
+                            // Immediate update with cached data
+                            setTimeout(() => {
+                                element.innerHTML = stat.value;
+                                element.classList.add('fade-in');
+                            }, index * 25); // Quick stagger for smooth appearance
+                        });
+                        return;
+                    }
+                    
+                    // No cache - show loading and fetch data
+                    console.log('Dashboard: No cache, loading from database');
+                    this.showStatsLoading();
+                    
                     // Load each stat individually as soon as it's available
                     const statTypes = [
                         { id: 'totalItems', type: 'totalItems' },
@@ -723,12 +748,10 @@
                             }, 150 + (index * 25)); // Faster stagger since queries are parallel
                         });
                     });
-                    
-                    console.log('Dashboard stats loading individually from database');
                     return;
                 }
                 
-                // No fallback - show empty state
+                // No database - show empty state
                 setTimeout(() => {
                     ['totalItems', 'processed', 'highPriority', 'sources'].forEach((id, index) => {
                         const element = document.getElementById(id);
