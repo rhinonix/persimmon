@@ -867,10 +867,10 @@
                 this.updatePIRCoverage();
                 this.updatePerformanceMetrics();
                 
-                // Update stats every 30 seconds to simulate live data
+                // Update stats every 5 minutes (less frequent to allow caching to work)
                 setInterval(() => {
                     this.updateStats();
-                }, 30000);
+                }, 300000); // 5 minutes instead of 30 seconds
                 
                 // Update recent activity every 5 minutes
                 setInterval(() => {
