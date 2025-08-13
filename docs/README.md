@@ -284,6 +284,16 @@ psql -f docs/schema_enhancements_for_dynamic_pirs.sql
 - **Missing Data**: Verify Supabase credentials and RLS policies
 - **RSS Feeds Not Working**: Check feed URLs and PIR targeting configuration
 - **Build Issues**: Ensure environment variables are set before running `./build.sh`
+- **Cache Not Working**: See [caching_system_guide.md](caching_system_guide.md) for detailed troubleshooting
+
+### Known Issues & Solutions
+
+**Dashboard Falls Back to localStorage Mode:**
+
+- **Symptom**: Console shows "Dashboard using localStorage fallback"
+- **Cause**: RLS authentication timing issue preventing database access
+- **Solution**: Fixed in current version - dashboard now bypasses `testConnection()` method
+- **Verification**: Should see "Dashboard: PersimmonDB is available, using database for data"
 
 ---
 

@@ -89,15 +89,29 @@ PersimmonDB.clearCache(); // Clear all caches
 **Normal Operation:**
 
 ```
+Dashboard: PersimmonDB is available, using database for data
+[DEBUG] Checking cache validity for: dashboardStats
+[DEBUG] localStorage check - stored: true, timestamp: [number]
+[DEBUG] Restoring localStorage cache to memory for: dashboardStats
+Cache hit: dashboardStats          // Using cached data (instant)
+Dashboard: Stats loaded {data}
+```
+
+**First Load (No Cache):**
+
+```
+[DEBUG] Checking cache validity for: dashboardStats
+[DEBUG] localStorage check - stored: false, timestamp: null
+[DEBUG] No valid cache found for: dashboardStats
 Cache miss: dashboardStats          // Loading fresh data
 Cache updated: dashboardStats       // Data cached successfully
-Cache hit: dashboardStats          // Using cached data (instant)
-Cache cleared: dashboardStats      // Cache invalidated
+Dashboard: Stats loaded {data}
 ```
 
 **Error Indicators:**
 
 ```
+Dashboard using localStorage fallback    // Database not available
 Database error in getDashboardStats    // Database connection issue
 Cache miss: dashboardStats (repeated)  // Cache not working properly
 ```
