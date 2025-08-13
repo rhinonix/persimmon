@@ -702,6 +702,9 @@
             async updateStats() {
                 if (this.usingDatabase && PersimmonDB) {
                     try {
+                        // Add a small delay to ensure localStorage is fully accessible
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
                         // Get stats using the main method which handles caching properly
                         const stats = await PersimmonDB.getDashboardStats();
                         
