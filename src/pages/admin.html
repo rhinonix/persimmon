@@ -617,7 +617,7 @@
                     if (PersimmonDB && PersimmonDB.isAvailable()) {
                         this.pirs = await PersimmonDB.getActivePIRs();
                     } else {
-                        // Fallback data
+                        // Use fallback data from database service
                         this.pirs = [
                             {
                                 id: '1',

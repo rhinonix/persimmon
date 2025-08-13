@@ -524,14 +524,7 @@
 
             setupHeader() {
                 const headerContainer = document.getElementById('header-container');
-                const navigationLinks = [
-                    { href: './index.html', text: 'Dashboard', primary: true },
-                    { href: './feed.html', text: 'Intelligence Feed' },
-                    { href: './processor.html', text: 'Data Processor' },
-                    { href: './reports.html', text: 'Reports' }
-                ];
-                
-                headerContainer.innerHTML = Persimmon.ui.createHeader('Dashboard', navigationLinks);
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Dashboard', 'dashboard');
             },
 
             async loadDashboardData() {
