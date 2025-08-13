@@ -599,17 +599,9 @@
             async loadDashboardData() {
                 // Load data from database if available, otherwise use localStorage fallback
                 if (PersimmonDB && PersimmonDB.isAvailable()) {
-                    try {
-                        // Test database connection
-                        const isConnected = await PersimmonDB.testConnection();
-                        if (isConnected) {
-                            console.log('Dashboard using database for data');
-                            this.usingDatabase = true;
-                            return;
-                        }
-                    } catch (error) {
-                        console.warn('Database connection failed, using localStorage fallback:', error);
-                    }
+                    console.log('Dashboard: PersimmonDB is available, using database for data');
+                    this.usingDatabase = true;
+                    return;
                 }
                 
                 // Fallback to localStorage
