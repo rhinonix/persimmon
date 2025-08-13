@@ -503,6 +503,7 @@
 
     <!-- Include shared utilities first -->
     <script src="./assets/js/shared.js"></script>
+    <script src="./assets/js/database.js"></script>
     <script src="./assets/js/auth.js"></script>
     
     <!-- Dashboard-specific functionality -->
@@ -533,8 +534,25 @@
                 headerContainer.innerHTML = Persimmon.ui.createHeader('Dashboard', navigationLinks);
             },
 
-            loadDashboardData() {
-                // Load data from various sources
+            async loadDashboardData() {
+                // Load data from database if available, otherwise use localStorage fallback
+                if (PersimmonDB && PersimmonDB.isAvailable()) {
+                    try {
+                        // Test database connection
+                        const isConnected = await PersimmonDB.testConnection();
+                        if (isConnected) {
+                            console.log('Dashboard using database for data');
+                            this.usingDatabase = true;
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn('Database connection failed, using localStorage fallback:', error);
+                    }
+                }
+                
+                // Fallback to localStorage
+                console.log('Dashboard using localStorage fallback');
+                this.usingDatabase = false;
                 const feedData = Persimmon.storage.get('feedData') || { items: [] };
                 const processingData = Persimmon.storage.get('processingData') || { queue: [], approved: [] };
                 const reportData = Persimmon.storage.get('weeklyReportData') || { items: [] };
@@ -547,10 +565,39 @@
                 };
             },
 
-            renderRecentActivity() {
+            async renderRecentActivity() {
                 const container = document.getElementById('recent-activity');
                 
-                // Generate sample recent activity
+                if (this.usingDatabase && PersimmonDB) {
+                    try {
+                        const activities = await PersimmonDB.getRecentActivity(5);
+                        
+                        if (activities.length > 0) {
+                            container.innerHTML = activities.map(activity => {
+                                const activityType = this.getActivityType(activity.action);
+                                const activityIcon = this.getActivityIcon(activity.action);
+                                
+                                return `
+                                    <div class="activity-item">
+                                        <div class="activity-icon activity-${activityType}">
+                                            ${activityIcon}
+                                        </div>
+                                        <div class="activity-content">
+                                            <div class="activity-title">${this.getActivityTitle(activity.action)}</div>
+                                            <div class="activity-description">${activity.description}</div>
+                                        </div>
+                                        <div class="activity-time">${PersimmonDB.formatTimeAgo(activity.created_at)}</div>
+                                    </div>
+                                `;
+                            }).join('');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error loading recent activity from database:', error);
+                    }
+                }
+                
+                // Fallback to mock data
                 const activities = [
                     {
                         type: 'processing',
@@ -603,8 +650,22 @@
                 `).join('');
             },
 
-            updateStats() {
-                // Update hero statistics with realistic numbers
+            async updateStats() {
+                if (this.usingDatabase && PersimmonDB) {
+                    try {
+                        const stats = await PersimmonDB.getDashboardStats();
+                        
+                        Persimmon.ui.updateText('totalItems', stats.totalItems);
+                        Persimmon.ui.updateText('processed', stats.aiProcessed);
+                        Persimmon.ui.updateText('highPriority', stats.highPriority);
+                        Persimmon.ui.updateText('sources', stats.activeSources);
+                        return;
+                    } catch (error) {
+                        console.error('Error loading stats from database:', error);
+                    }
+                }
+                
+                // Fallback to mock stats with variation
                 const stats = this.calculateStats();
                 
                 Persimmon.ui.updateText('totalItems', stats.total);
@@ -614,7 +675,7 @@
             },
 
             calculateStats() {
-                // Generate realistic statistics
+                // Generate realistic statistics for fallback
                 const baseStats = {
                     total: 247,
                     aiProcessed: 89,
@@ -633,7 +694,112 @@
                 };
             },
 
+            // Helper functions for activity display
+            getActivityType(action) {
+                const typeMap = {
+                    'create_item': 'processing',
+                    'approve_item': 'feed',
+                    'generate_report': 'report',
+                    'upload_data': 'processing',
+                    'processing': 'processing',
+                    'feed_update': 'feed',
+                    'report_generated': 'report',
+                    'source_added': 'processing',
+                    'alert': 'feed'
+                };
+                return typeMap[action] || 'processing';
+            },
+
+            getActivityIcon(action) {
+                const iconMap = {
+                    'create_item': 'NEW',
+                    'approve_item': 'APP',
+                    'generate_report': 'RPT',
+                    'upload_data': 'UP',
+                    'processing': 'AI',
+                    'feed_update': 'FEED',
+                    'report_generated': 'RPT',
+                    'source_added': 'SRC',
+                    'alert': 'ALRT'
+                };
+                return iconMap[action] || 'SYS';
+            },
+
+            getActivityTitle(action) {
+                const titleMap = {
+                    'create_item': 'New Intelligence Item',
+                    'approve_item': 'Item Approved',
+                    'generate_report': 'Report Generated',
+                    'upload_data': 'Data Uploaded',
+                    'processing': 'AI Processing',
+                    'feed_update': 'Feed Updated',
+                    'report_generated': 'Report Generated',
+                    'source_added': 'Source Added',
+                    'alert': 'Alert Generated'
+                };
+                return titleMap[action] || 'System Activity';
+            },
+
+            async updatePIRCoverage() {
+                if (this.usingDatabase && PersimmonDB) {
+                    try {
+                        const pirData = await PersimmonDB.getPIRCoverage('week');
+                        
+                        if (pirData.length > 0) {
+                            const pirContainer = document.querySelector('.pir-status');
+                            pirContainer.innerHTML = pirData.map(pir => `
+                                <div class="pir-item">
+                                    <span class="pir-name">${pir.pir_name}</span>
+                                    <span class="pir-count">${pir.total_items} items</span>
+                                </div>
+                            `).join('');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error loading PIR coverage from database:', error);
+                    }
+                }
+                
+                // Fallback to existing static data - no changes needed
+            },
+
+            async updatePerformanceMetrics() {
+                if (this.usingDatabase && PersimmonDB) {
+                    try {
+                        const metrics = await PersimmonDB.getSystemMetrics();
+                        
+                        // Update metrics if available
+                        if (metrics.processing_accuracy) {
+                            document.querySelector('.metrics-grid .metric-item:nth-child(1) .metric-number').textContent = 
+                                `${metrics.processing_accuracy.value}%`;
+                        }
+                        if (metrics.avg_processing_time_ms) {
+                            const seconds = (metrics.avg_processing_time_ms.value / 1000).toFixed(1);
+                            document.querySelector('.metrics-grid .metric-item:nth-child(2) .metric-number').textContent = 
+                                `${seconds}s`;
+                        }
+                        if (metrics.monthly_cost_usd) {
+                            document.querySelector('.metrics-grid .metric-item:nth-child(3) .metric-number').textContent = 
+                                `$${metrics.monthly_cost_usd.value}`;
+                        }
+                        if (metrics.system_uptime_percent) {
+                            document.querySelector('.metrics-grid .metric-item:nth-child(4) .metric-number').textContent = 
+                                `${metrics.system_uptime_percent.value}%`;
+                        }
+                        return;
+                    } catch (error) {
+                        console.error('Error loading performance metrics from database:', error);
+                    }
+                }
+                
+                // Fallback to existing static data - no changes needed
+            },
+
             startRealTimeUpdates() {
+                // Initial load of PIR coverage and performance metrics
+                this.updatePIRCoverage();
+                this.updatePerformanceMetrics();
+                
                 // Update stats every 30 seconds to simulate live data
                 setInterval(() => {
                     this.updateStats();
@@ -643,6 +809,12 @@
                 setInterval(() => {
                     this.addNewActivity();
                 }, 300000);
+                
+                // Update PIR coverage and metrics every 10 minutes
+                setInterval(() => {
+                    this.updatePIRCoverage();
+                    this.updatePerformanceMetrics();
+                }, 600000);
             },
 
             addNewActivity() {

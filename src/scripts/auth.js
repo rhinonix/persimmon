@@ -35,6 +35,11 @@ const PersimmonAuth = {
       );
       console.log("Supabase client initialized");
 
+      // Initialize database service with Supabase client
+      if (typeof PersimmonDB !== "undefined") {
+        PersimmonDB.init(this.supabase);
+      }
+
       // Check authentication state on page load
       this.checkAuthState();
     } else {

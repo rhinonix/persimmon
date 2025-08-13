@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Persimmon Intelligence</title>
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Admin-specific styles */
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 20px;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .admin-sidebar {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 0;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+            margin: 0;
+            padding: 8px 0;
+        }
+        
+        .nav-item {
+            margin: 0;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .nav-link:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .nav-link.active {
+            background: #f0f9ff;
+            color: var(--accent-blue);
+            border-right: 2px solid var(--accent-blue);
+        }
+        
+        .nav-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+        
+        .nav-link.active .nav-icon {
+            opacity: 1;
+        }
+        
+        .admin-main {
+            background: var(--bg-white);
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 24px;
+            min-height: 600px;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .pir-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .pir-card {
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .pir-card:hover {
+            border-color: var(--border-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .pir-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .pir-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .pir-code {
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .pir-status {
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #f0fdf4;
+            color: #166534;
+        }
+        
+        .status-inactive {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+        
+        .pir-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        .pir-keywords {
+            margin-bottom: 12px;
+        }
+        
+        .keyword-tag {
+            display: inline-block;
+            font-size: 10px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 2px 4px 2px 0;
+        }
+        
+        .pir-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .rss-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .rss-card {
+            border: 1px solid var(--border-medium);
+            border-radius: 8px;
+            padding: 20px;
+            background: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .rss-card:hover {
+            border-color: var(--border-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .rss-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .rss-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .rss-url {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            font-family: monospace;
+            word-break: break-all;
+        }
+        
+        .rss-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+        
+        .rss-targets {
+            margin-bottom: 12px;
+        }
+        
+        .target-tag {
+            display: inline-block;
+            font-size: 10px;
+            background: var(--persimmon-orange);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 2px 4px 2px 0;
+        }
+        
+        .rss-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-bottom: 12px;
+        }
+        
+        .form-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: var(--bg-white);
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .form-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            font-size: 13px;
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            margin: 0;
+        }
+        
+        .checkbox-item label {
+            font-size: 12px;
+            margin: 0;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .color-picker-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid var(--border-medium);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header will be inserted by JavaScript -->
+    <div id="header-container"></div>
+    
+    <div class="container">
+        <div class="admin-layout">
+            <!-- Sidebar Navigation -->
+            <div class="admin-sidebar">
+                <nav class="sidebar-nav">
+                    <div class="nav-item">
+                        <button class="nav-link active" onclick="PersimmonAdmin.showPage('pirs')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/>
+                            </svg>
+                            Manage PIRs
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" onclick="PersimmonAdmin.showPage('rss')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248S0 22.546 0 20.752s1.456-3.248 3.252-3.248 3.251 1.454 3.251 3.248zM1.677 6.082v4.15c6.988 0 12.65 5.663 12.65 12.65h4.15c0-9.296-7.504-16.8-16.8-16.8zM1.677.757v4.15C14.727 4.907 25.25 15.43 25.25 28.48H29.4C29.4 13.287 16.87.757 1.677.757z"/>
+                            </svg>
+                            RSS Feeds
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" onclick="PersimmonAdmin.showPage('settings')">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                            </svg>
+                            System Settings
+                        </button>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="admin-main">
+                <!-- PIR Management Page -->
+                <div class="page active" id="pirs-page">
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">Priority Intelligence Requirements (PIRs)</h2>
+                            <button class="btn btn-primary" onclick="PersimmonAdmin.showPIRForm()">Add New PIR</button>
+                        </div>
+                        
+                        <div class="pir-grid" id="pir-grid">
+                            <!-- PIR cards will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RSS Feeds Page -->
+                <div class="page" id="rss-page">
+                    <div class="section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 class="section-title">RSS Feed Management</h2>
+                            <button class="btn btn-primary" onclick="PersimmonAdmin.showRSSForm()">Add RSS Feed</button>
+                        </div>
+                        
+                        <div class="rss-grid" id="rss-grid">
+                            <!-- RSS feed cards will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Settings Page -->
+                <div class="page" id="settings-page">
+                    <div class="section">
+                        <h2 class="section-title">System Settings</h2>
+                        
+                        <div style="background: var(--bg-secondary); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="margin-bottom: 12px;">Database Status</h3>
+                            <div id="database-status">
+                                <div style="font-size: 13px; color: var(--text-secondary);">Checking database connection...</div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: var(--bg-secondary); padding: 20px; border-radius: 8px;">
+                            <h3 style="margin-bottom: 12px;">System Information</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                                <div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Total PIRs</div>
+                                    <div style="font-size: 18px; font-weight: 600;" id="total-pirs">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Active RSS Feeds</div>
+                                    <div style="font-size: 18px; font-weight: 600;" id="active-feeds">-</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Intelligence Items</div>
+                                    <div style="font-size: 18px; font-weight: 600;" id="total-items">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIR Form Modal -->
+    <div class="form-modal" id="pir-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New PIR</h3>
+                <button class="close-btn" onclick="PersimmonAdmin.closePIRForm()">&times;</button>
+            </div>
+            
+            <form id="pir-form">
+                <div class="form-group">
+                    <label class="form-label">PIR Name</label>
+                    <input type="text" class="form-input" id="pir-name" placeholder="e.g., Cyber Threats" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Category Code</label>
+                    <input type="text" class="form-input" id="pir-code" placeholder="e.g., cyber_threats" required>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                        Lowercase, underscores only. Used for system identification.
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="pir-description" placeholder="Describe what this PIR covers..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Keywords (comma-separated)</label>
+                    <textarea class="form-textarea" id="pir-keywords" placeholder="cyber, attack, malware, ransomware, breach"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Color</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="pir-color" value="#3b82f6">
+                        <div class="color-preview" id="color-preview"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Confidence Threshold (%)</label>
+                    <input type="number" class="form-input" id="pir-threshold" value="70" min="0" max="100">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="PersimmonAdmin.closePIRForm()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create PIR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RSS Feed Form Modal -->
+    <div class="form-modal" id="rss-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add RSS Feed</h3>
+                <button class="close-btn" onclick="PersimmonAdmin.closeRSSForm()">&times;</button>
+            </div>
+            
+            <form id="rss-form">
+                <div class="form-group">
+                    <label class="form-label">Feed Name</label>
+                    <input type="text" class="form-input" id="rss-name" placeholder="e.g., Security Week" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">RSS URL</label>
+                    <input type="url" class="form-input" id="rss-url" placeholder="https://example.com/feed.xml" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="rss-description" placeholder="Describe this RSS feed..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Target PIRs</label>
+                    <div class="checkbox-group" id="pir-checkboxes">
+                        <!-- PIR checkboxes will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Refresh Interval (seconds)</label>
+                    <select class="form-select" id="rss-interval">
+                        <option value="1800">30 minutes</option>
+                        <option value="3600" selected>1 hour</option>
+                        <option value="7200">2 hours</option>
+                        <option value="21600">6 hours</option>
+                        <option value="43200">12 hours</option>
+                        <option value="86400">24 hours</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="PersimmonAdmin.closeRSSForm()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Feed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Include shared utilities first -->
+    <script src="./assets/js/shared.js"></script>
+    <script src="./assets/js/database.js"></script>
+    <script src="./assets/js/auth.js"></script>
+    
+    <!-- Admin-specific functionality -->
+    <script>
+        /**
+         * Persimmon Admin - PIR and RSS Feed Management
+         */
+        const PersimmonAdmin = {
+            pirs: [],
+            rssFeeds: [],
+
+            // Initialize admin interface
+            init() {
+                this.setupHeader();
+                this.loadPIRs();
+                this.loadRSSFeeds();
+                this.updateSystemInfo();
+                this.checkDatabaseStatus();
+            },
+
+            setupHeader() {
+                const headerContainer = document.getElementById('header-container');
+                const navigationLinks = [
+                    { href: './index.html', text: 'Dashboard' },
+                    { href: './processor.html', text: 'Data Processor' },
+                    { href: './feed.html', text: 'Intelligence Feed' },
+                    { href: './reports.html', text: 'Reports' },
+                    { href: './admin.html', text: 'Admin', primary: true }
+                ];
+                
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Admin', navigationLinks);
+            },
+
+            // Page navigation
+            showPage(pageId) {
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+                
+                // Show selected page
+                document.getElementById(pageId + '-page').classList.add('active');
+                event.target.classList.add('active');
+            },
+
+            // PIR Management
+            async loadPIRs() {
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        this.pirs = await PersimmonDB.getActivePIRs();
+                    } else {
+                        // Fallback data
+                        this.pirs = [
+                            {
+                                id: '1',
+                                name: 'Ukraine Conflict',
+                                category_code: 'ukraine',
+                                description: 'Frontline movements, political developments, strategic shifts',
+                                keywords: ['ukraine', 'ukrainian', 'bakhmut', 'kharkiv'],
+                                color_code: '#0057b7',
+                                active: true,
+                                confidence_threshold: 70
+                            },
+                            {
+                                id: '2',
+                                name: 'Industrial Sabotage',
+                                category_code: 'sabotage',
+                                description: 'Infrastructure attacks, facility threats, industrial espionage',
+                                keywords: ['sabotage', 'infrastructure', 'industrial', 'cyber'],
+                                color_code: '#dc2626',
+                                active: true,
+                                confidence_threshold: 75
+                            },
+                            {
+                                id: '3',
+                                name: 'Insider Threats',
+                                category_code: 'insider',
+                                description: 'Employee security issues, background check problems',
+                                keywords: ['employee', 'insider', 'security', 'clearance'],
+                                color_code: '#f59e0b',
+                                active: true,
+                                confidence_threshold: 80
+                            }
+                        ];
+                    }
+                    this.renderPIRs();
+                } catch (error) {
+                    console.error('Error loading PIRs:', error);
+                    Persimmon.notifications.error('Failed to load PIRs');
+                }
+            },
+
+            renderPIRs() {
+                const container = document.getElementById('pir-grid');
+                
+                container.innerHTML = this.pirs.map(pir => `
+                    <div class="pir-card">
+                        <div class="pir-header">
+                            <div>
+                                <div class="pir-name" style="color: ${pir.color_code}">${pir.name}</div>
+                                <div class="pir-code">${pir.category_code}</div>
+                            </div>
+                            <div class="pir-status ${pir.active ? 'status-active' : 'status-inactive'}">
+                                ${pir.active ? 'ACTIVE' : 'INACTIVE'}
+                            </div>
+                        </div>
+                        <div class="pir-description">${pir.description}</div>
+                        <div class="pir-keywords">
+                            ${(pir.keywords || []).map(keyword => 
+                                `<span class="keyword-tag">${keyword}</span>`
+                            ).join('')}
+                        </div>
+                        <div class="pir-actions">
+                            <button class="btn btn-secondary" onclick="PersimmonAdmin.editPIR('${pir.id}')">Edit</button>
+                            <button class="btn" onclick="PersimmonAdmin.togglePIR('${pir.id}')">
+                                ${pir.active ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // RSS Feed Management
+            async loadRSSFeeds() {
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        this.rssFeeds = await PersimmonDB.getRSSFeeds();
+                    } else {
+                        // Fallback data
+                        this.rssFeeds = [
+                            {
+                                id: '1',
+                                name: 'Security Week',
+                                url: 'https://www.securityweek.com/feed/',
+                                description: 'Cybersecurity and information security news',
+                                active: false,
+                                status: 'inactive',
+                                last_fetched: null,
+                                last_item_count: 0,
+                                target_pirs: ['sabotage', 'insider']
+                            },
+                            {
+                                id: '2',
+                                name: 'Defense News',
+                                url: 'https://www.defensenews.com/rss/',
+                                description: 'Military and defense industry news',
+                                active: false,
+                                status: 'inactive',
+                                last_fetched: null,
+                                last_item_count: 0,
+                                target_pirs: ['ukraine', 'sabotage']
+                            },
+                            {
+                                id: '3',
+                                name: 'Krebs on Security',
+                                url: 'https://krebsonsecurity.com/feed/',
+                                description: 'In-depth security journalism',
+                                active: false,
+                                status: 'inactive',
+                                last_fetched: null,
+                                last_item_count: 0,
+                                target_pirs: ['sabotage', 'insider']
+                            }
+                        ];
+                    }
+                    this.renderRSSFeeds();
+                } catch (error) {
+                    console.error('Error loading RSS feeds:', error);
+                    Persimmon.notifications.error('Failed to load RSS feeds');
+                }
+            },
+
+            renderRSSFeeds() {
+                const container = document.getElementById('rss-grid');
+                
+                container.innerHTML = this.rssFeeds.map(feed => `
+                    <div class="rss-card">
+                        <div class="rss-header">
+                            <div>
+                                <div class="rss-name">${feed.name}</div>
+                                <div class="rss-url">${feed.url}</div>
+                            </div>
+                            <div class="pir-status ${feed.active ? 'status-active' : 'status-inactive'}">
+                                ${feed.active ? 'ACTIVE' : 'INACTIVE'}
+                            </div>
+                        </div>
+                        <div class="rss-description">${feed.description}</div>
+                        <div class="rss-targets">
+                            ${(feed.target_pirs || []).map(pir => 
+                                `<span class="target-tag">${pir.toUpperCase()}</span>`
+                            ).join('')}
+                        </div>
+                        <div class="rss-meta">
+                            <span>Last fetched: ${feed.last_fetched ? new Date(feed.last_fetched).toLocaleDateString() : 'Never'}</span>
+                            <span>${feed.last_item_count || 0} items</span>
+                        </div>
+                        <div class="pir-actions">
+                            <button class="btn btn-secondary" onclick="PersimmonAdmin.editRSSFeed('${feed.id}')">Edit</button>
+                            <button class="btn" onclick="PersimmonAdmin.toggleRSSFeed('${feed.id}')">
+                                ${feed.active ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            // Form Management
+            showPIRForm() {
+                document.getElementById('pir-modal').style.display = 'flex';
+                this.updateColorPreview();
+            },
+
+            closePIRForm() {
+                document.getElementById('pir-modal').style.display = 'none';
+                document.getElementById('pir-form').reset();
+            },
+
+            showRSSForm() {
+                document.getElementById('rss-modal').style.display = 'flex';
+                this.populatePIRCheckboxes();
+            },
+
+            closeRSSForm() {
+                document.getElementById('rss-modal').style.display = 'none';
+                document.getElementById('rss-form').reset();
+            },
+
+            populatePIRCheckboxes() {
+                const container = document.getElementById('pir-checkboxes');
+                container.innerHTML = this.pirs.map(pir => `
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="pir-${pir.id}" value="${pir.id}">
+                        <label for="pir-${pir.id}">${pir.name}</label>
+                    </div>
+                `).join('');
+            },
+
+            updateColorPreview() {
+                const colorInput = document.getElementById('pir-color');
+                const preview = document.getElementById('color-preview');
+                
+                const updatePreview = () => {
+                    preview.style.backgroundColor = colorInput.value;
+                };
+                
+                colorInput.addEventListener('input', updatePreview);
+                updatePreview();
+            },
+
+            // Form Submission
+            async submitPIRForm(event) {
+                event.preventDefault();
+                
+                const formData = {
+                    name: document.getElementById('pir-name').value,
+                    category_code: document.getElementById('pir-code').value,
+                    description: document.getElementById('pir-description').value,
+                    keywords: document.getElementById('pir-keywords').value.split(',').map(k => k.trim()).filter(k => k),
+                    color_code: document.getElementById('pir-color').value,
+                    confidence_threshold: parseInt(document.getElementById('pir-threshold').value)
+                };
+
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        await PersimmonDB.createPIR(formData);
+                        Persimmon.notifications.success('PIR created successfully');
+                    } else {
+                        // Fallback - add to local array
+                        formData.id = Date.now().toString();
+                        formData.active = true;
+                        this.pirs.push(formData);
+                        Persimmon.notifications.success('PIR created (database unavailable)');
+                    }
+                    
+                    this.closePIRForm();
+                    this.loadPIRs();
+                } catch (error) {
+                    console.error('Error creating PIR:', error);
+                    Persimmon.notifications.error('Failed to create PIR');
+                }
+            },
+
+            async submitRSSForm(event) {
+                event.preventDefault();
+                
+                const selectedPIRs = Array.from(document.querySelectorAll('#pir-checkboxes input:checked'))
+                    .map(cb => cb.value);
+                
+                const formData = {
+                    name: document.getElementById('rss-name').value,
+                    url: document.getElementById('rss-url').value,
+                    description: document.getElementById('rss-description').value,
+                    target_pirs: selectedPIRs,
+                    refresh_interval: parseInt(document.getElementById('rss-interval').value)
+                };
+
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        await PersimmonDB.createRSSFeed(formData);
+                        Persimmon.notifications.success('RSS feed added successfully');
+                    } else {
+                        // Fallback - add to local array
+                        formData.id = Date.now().toString();
+                        formData.active = false;
+                        formData.status = 'inactive';
+                        formData.last_fetched = null;
+                        formData.last_item_count = 0;
+                        this.rssFeeds.push(formData);
+                        Persimmon.notifications.success('RSS feed added (database unavailable)');
+                    }
+                    
+                    this.closeRSSForm();
+                    this.loadRSSFeeds();
+                } catch (error) {
+                    console.error('Error creating RSS feed:', error);
+                    Persimmon.notifications.error('Failed to add RSS feed');
+                }
+            },
+
+            // System Information
+            async updateSystemInfo() {
+                try {
+                    document.getElementById('total-pirs').textContent = this.pirs.length;
+                    document.getElementById('active-feeds').textContent = this.rssFeeds.filter(f => f.active).length;
+                    
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        const stats = await PersimmonDB.getDashboardStats();
+                        document.getElementById('total-items').textContent = stats.totalItems;
+                    } else {
+                        document.getElementById('total-items').textContent = '247 (fallback)';
+                    }
+                } catch (error) {
+                    console.error('Error updating system info:', error);
+                }
+            },
+
+            async checkDatabaseStatus() {
+                const statusContainer = document.getElementById('database-status');
+                
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        const isConnected = await PersimmonDB.testConnection();
+                        if (isConnected) {
+                            statusContainer.innerHTML = `
+                                <div style="color: var(--success-green); font-weight: 500;">✅ Database Connected</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                    All PIR and RSS feed operations will be persisted to Supabase.
+                                </div>
+                            `;
+                        } else {
+                            statusContainer.innerHTML = `
+                                <div style="color: var(--error-red); font-weight: 500;">❌ Database Connection Failed</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                    Operating in fallback mode. Changes will not be persisted.
+                                </div>
+                            `;
+                        }
+                    } else {
+                        statusContainer.innerHTML = `
+                            <div style="color: var(--warning-amber); font-weight: 500;">⚠️ Database Not Available</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                Database service not initialized. Operating in fallback mode.
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusContainer.innerHTML = `
+                        <div style="color: var(--error-red); font-weight: 500;">❌ Database Error</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            ${error.message}
+                        </div>
+                    `;
+                }
+            },
+
+            // Placeholder functions for edit/toggle operations
+            editPIR(id) {
+                Persimmon.notifications.info('PIR editing functionality coming soon');
+            },
+
+            togglePIR(id) {
+                Persimmon.notifications.info('PIR toggle functionality coming soon');
+            },
+
+            editRSSFeed(id) {
+                Persimmon.notifications.info('RSS feed editing functionality coming soon');
+            },
+
+            toggleRSSFeed(id) {
+                Persimmon.notifications.info('RSS feed toggle functionality coming soon');
+            }
+        };
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            PersimmonAdmin.init();
+        });
+
+        // Form event listeners
+        document.getElementById('pir-form').addEventListener('submit', (e) => {
+            PersimmonAdmin.submitPIRForm(e);
+        });
+
+        document.getElementById('rss-form').addEventListener('submit', (e) => {
+            PersimmonAdmin.submitRSSForm(e);
+        });
+
+        // Make functions available globally for onclick handlers
+        window.PersimmonAdmin = PersimmonAdmin;
+    </script>
+</body>
+</html>

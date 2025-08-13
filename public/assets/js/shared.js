@@ -429,11 +429,12 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
   ui: {
     // Create Persimmon header component with standardized navigation
     createHeader(pageTitle, currentPage = "") {
-      // Standardized navigation - always the same 3 buttons (in workflow order)
+      // Standardized navigation - always the same 4 buttons (in workflow order)
       const standardNavigation = [
         { href: "./processor.html", text: "Data Processor", page: "processor" },
         { href: "./feed.html", text: "Intelligence Feed", page: "feed" },
         { href: "./reports.html", text: "Reports", page: "reports" },
+        { href: "./admin.html", text: "Admin", page: "admin" },
       ];
 
       // Auto-detect current page if not provided
