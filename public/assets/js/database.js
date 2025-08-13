@@ -156,6 +156,9 @@ const PersimmonDB = {
         throw error;
       }
 
+      // Clear dashboard stats cache since data changed
+      this.clearCache("dashboardStats");
+
       return data;
     } catch (error) {
       console.error("Database error in createIntelligenceItem:", error);
@@ -286,40 +289,16 @@ const PersimmonDB = {
       return;
     }
 
+    // No cache - fetch all stats and cache them, then return the requested one
     try {
-      let query;
-      switch (statType) {
-        case "totalItems":
-          query = this.supabase
-            .from("intelligence_items")
-            .select("id", { count: "exact", head: true });
-          break;
-        case "aiProcessed":
-          query = this.supabase
-            .from("intelligence_items")
-            .select("id", { count: "exact", head: true })
-            .eq("ai_processed", true);
-          break;
-        case "highPriority":
-          query = this.supabase
-            .from("intelligence_items")
-            .select("id", { count: "exact", head: true })
-            .eq("priority", "high");
-          break;
-        case "activeSources":
-          query = this.supabase
-            .from("data_sources")
-            .select("id", { count: "exact", head: true })
-            .eq("active", true);
-          break;
-        default:
-          throw new Error(`Unknown stat type: ${statType}`);
-      }
-
-      const { count, error } = await query;
-      if (error) throw error;
-
-      callback(count || 0);
+      const stats = await this.getDashboardStats(); // This will cache the results
+      const statMap = {
+        totalItems: stats.totalItems,
+        aiProcessed: stats.aiProcessed,
+        highPriority: stats.highPriority,
+        activeSources: stats.activeSources,
+      };
+      callback(statMap[statType] || 0);
     } catch (error) {
       console.error(`Error loading ${statType}:`, error);
       callback(0);

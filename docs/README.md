@@ -158,6 +158,10 @@ psql -f docs/schema_enhancements_for_dynamic_pirs.sql
 - **[phase1_implementation_guide.md](phase1_implementation_guide.md)** - Implementation roadmap
 - **[local_testing_guide.md](local_testing_guide.md)** - Local development and testing
 
+### Performance & Optimization
+
+- **[caching_system_guide.md](caching_system_guide.md)** - Caching architecture, troubleshooting, and performance optimization
+
 ### Legacy Setup
 
 - **[setup_guide.md](setup_guide.md)** - Original API integration guide
