@@ -151,42 +151,41 @@ const PersimmonDB = {
 
   async getDashboardStats() {
     try {
-      // Get total counts
-      const { data: totalItems, error: totalError } = await this.supabase
-        .from("intelligence_items")
-        .select("id", { count: "exact", head: true });
+      // Execute all queries in parallel
+      const [
+        totalItemsResult,
+        aiProcessedResult,
+        highPriorityResult,
+        activeSourcesResult,
+      ] = await Promise.all([
+        this.supabase
+          .from("intelligence_items")
+          .select("id", { count: "exact", head: true }),
+        this.supabase
+          .from("intelligence_items")
+          .select("id", { count: "exact", head: true })
+          .eq("ai_processed", true),
+        this.supabase
+          .from("intelligence_items")
+          .select("id", { count: "exact", head: true })
+          .eq("priority", "high"),
+        this.supabase
+          .from("data_sources")
+          .select("id", { count: "exact", head: true })
+          .eq("active", true),
+      ]);
 
-      if (totalError) throw totalError;
-
-      // Get AI processed count
-      const { data: aiProcessed, error: aiError } = await this.supabase
-        .from("intelligence_items")
-        .select("id", { count: "exact", head: true })
-        .eq("ai_processed", true);
-
-      if (aiError) throw aiError;
-
-      // Get high priority count
-      const { data: highPriority, error: priorityError } = await this.supabase
-        .from("intelligence_items")
-        .select("id", { count: "exact", head: true })
-        .eq("priority", "high");
-
-      if (priorityError) throw priorityError;
-
-      // Get active sources count
-      const { data: activeSources, error: sourcesError } = await this.supabase
-        .from("data_sources")
-        .select("id", { count: "exact", head: true })
-        .eq("active", true);
-
-      if (sourcesError) throw sourcesError;
+      // Check for errors
+      if (totalItemsResult.error) throw totalItemsResult.error;
+      if (aiProcessedResult.error) throw aiProcessedResult.error;
+      if (highPriorityResult.error) throw highPriorityResult.error;
+      if (activeSourcesResult.error) throw activeSourcesResult.error;
 
       return {
-        totalItems: totalItems || 0,
-        aiProcessed: aiProcessed || 0,
-        highPriority: highPriority || 0,
-        activeSources: activeSources || 0,
+        totalItems: totalItemsResult.count || 0,
+        aiProcessed: aiProcessedResult.count || 0,
+        highPriority: highPriorityResult.count || 0,
+        activeSources: activeSourcesResult.count || 0,
       };
     } catch (error) {
       console.error("Database error in getDashboardStats:", error);
@@ -197,6 +196,48 @@ const PersimmonDB = {
         highPriority: 12,
         activeSources: 8,
       };
+    }
+  },
+
+  // New method for individual stat updates
+  async getDashboardStatIndividual(statType, callback) {
+    try {
+      let query;
+      switch (statType) {
+        case "totalItems":
+          query = this.supabase
+            .from("intelligence_items")
+            .select("id", { count: "exact", head: true });
+          break;
+        case "aiProcessed":
+          query = this.supabase
+            .from("intelligence_items")
+            .select("id", { count: "exact", head: true })
+            .eq("ai_processed", true);
+          break;
+        case "highPriority":
+          query = this.supabase
+            .from("intelligence_items")
+            .select("id", { count: "exact", head: true })
+            .eq("priority", "high");
+          break;
+        case "activeSources":
+          query = this.supabase
+            .from("data_sources")
+            .select("id", { count: "exact", head: true })
+            .eq("active", true);
+          break;
+        default:
+          throw new Error(`Unknown stat type: ${statType}`);
+      }
+
+      const { count, error } = await query;
+      if (error) throw error;
+
+      callback(count || 0);
+    } catch (error) {
+      console.error(`Error loading ${statType}:`, error);
+      callback(0);
     }
   },
 

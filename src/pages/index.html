@@ -704,25 +704,28 @@
                 this.showStatsLoading();
                 
                 if (this.usingDatabase && PersimmonDB) {
-                    try {
-                        const stats = await PersimmonDB.getDashboardStats();
-                        
-                        // Update with real data and add fade-in animation
-                        ['totalItems', 'processed', 'highPriority', 'sources'].forEach((id, index) => {
-                            const element = document.getElementById(id);
-                            const values = [stats.totalItems || 0, stats.aiProcessed || 0, stats.highPriority || 0, stats.activeSources || 0];
-                            
+                    // Load each stat individually as soon as it's available
+                    const statTypes = [
+                        { id: 'totalItems', type: 'totalItems' },
+                        { id: 'processed', type: 'aiProcessed' },
+                        { id: 'highPriority', type: 'highPriority' },
+                        { id: 'sources', type: 'activeSources' }
+                    ];
+                    
+                    // Start all queries simultaneously, update UI as each completes
+                    statTypes.forEach((stat, index) => {
+                        PersimmonDB.getDashboardStatIndividual(stat.type, (value) => {
+                            const element = document.getElementById(stat.id);
+                            // Small delay to show loading state briefly, then stagger updates
                             setTimeout(() => {
-                                element.innerHTML = values[index];
+                                element.innerHTML = value;
                                 element.classList.add('fade-in');
-                            }, 100 + (index * 50)); // Stagger the animations
+                            }, 150 + (index * 25)); // Faster stagger since queries are parallel
                         });
-                        
-                        console.log('Dashboard stats loaded from database:', stats);
-                        return;
-                    } catch (error) {
-                        console.error('Error loading stats from database:', error);
-                    }
+                    });
+                    
+                    console.log('Dashboard stats loading individually from database');
+                    return;
                 }
                 
                 // No fallback - show empty state
@@ -732,9 +735,9 @@
                         setTimeout(() => {
                             element.innerHTML = '-';
                             element.classList.add('fade-in');
-                        }, 100 + (index * 50));
+                        }, 150 + (index * 25));
                     });
-                }, 300); // Brief delay to show loading state
+                }, 200); // Brief delay to show loading state
                 
                 console.log('Dashboard: Database unavailable, showing empty state');
             },
