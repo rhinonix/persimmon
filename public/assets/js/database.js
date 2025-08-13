@@ -33,10 +33,16 @@ const PersimmonDB = {
   // Cache utility methods with localStorage persistence
   isCacheValid(key) {
     try {
+      console.log(`[DEBUG] Checking cache validity for: ${key}`);
+
       // Check memory cache first
       if (this.cache[key] && this.cache.timestamps[key]) {
         const age = Date.now() - this.cache.timestamps[key];
+        console.log(
+          `[DEBUG] Memory cache found, age: ${age}ms, TTL: ${this.cacheConfig[key]}ms`
+        );
         if (age < this.cacheConfig[key]) {
+          console.log(`[DEBUG] Memory cache valid for: ${key}`);
           return true;
         }
       }
@@ -47,15 +53,29 @@ const PersimmonDB = {
         `persimmon_cache_${key}_timestamp`
       );
 
+      console.log(
+        `[DEBUG] localStorage check - stored: ${!!stored}, timestamp: ${storedTimestamp}`
+      );
+
       if (stored && storedTimestamp) {
         const age = Date.now() - parseInt(storedTimestamp);
+        console.log(
+          `[DEBUG] localStorage cache age: ${age}ms, TTL: ${this.cacheConfig[key]}ms`
+        );
+
         if (age < this.cacheConfig[key]) {
           // Restore to memory cache
+          console.log(
+            `[DEBUG] Restoring localStorage cache to memory for: ${key}`
+          );
           this.cache[key] = JSON.parse(stored);
           this.cache.timestamps[key] = parseInt(storedTimestamp);
           return true;
         } else {
           // Expired - clean up localStorage
+          console.log(
+            `[DEBUG] localStorage cache expired, cleaning up: ${key}`
+          );
           localStorage.removeItem(`persimmon_cache_${key}`);
           localStorage.removeItem(`persimmon_cache_${key}_timestamp`);
         }
@@ -64,6 +84,7 @@ const PersimmonDB = {
       console.warn(`Cache validation error for ${key}:`, error);
     }
 
+    console.log(`[DEBUG] No valid cache found for: ${key}`);
     return false;
   },
 
