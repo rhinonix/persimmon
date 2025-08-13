@@ -4,7 +4,155 @@
 
 This document outlines the comprehensive database schema for the Persimmon Intelligence Platform, designed to replace the current localStorage-based mock data with persistent Supabase database storage.
 
+**Schema Features:**
+
+- **Dynamic PIR Management**: Unlimited custom Priority Intelligence Requirements
+- **RSS Feed Integration**: Automated feed processing with PIR targeting
+- **Enterprise Security**: Row Level Security with complete audit trails
+- **Real-time Updates**: Supabase subscriptions for live dashboard updates
+- **Scalable Architecture**: Designed for thousands of intelligence items
+
 ## Core Tables
+
+### Dynamic PIR Management Tables
+
+#### pirs - Priority Intelligence Requirements
+
+Define unlimited custom PIRs beyond the default Ukraine/Sabotage/Insider categories.
+
+```sql
+CREATE TABLE pirs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- PIR identification
+  name TEXT NOT NULL, -- e.g., "Ukraine Conflict", "Cyber Threats"
+  category_code TEXT NOT NULL UNIQUE, -- e.g., "ukraine", "cyber_threats"
+  description TEXT NOT NULL,
+
+  -- PIR configuration
+  keywords TEXT[], -- Array of keywords for AI analysis
+  priority_weight DECIMAL(3,2) DEFAULT 1.0, -- Multiplier for priority scoring
+  active BOOLEAN DEFAULT TRUE,
+
+  -- AI prompt configuration
+  ai_prompt_template TEXT, -- Custom prompt template for this PIR
+  confidence_threshold INTEGER DEFAULT 70, -- Minimum confidence to flag as relevant
+
+  -- User management
+  created_by UUID REFERENCES auth.users(id),
+  updated_by UUID REFERENCES auth.users(id),
+
+  -- Metadata
+  color_code TEXT DEFAULT '#3b82f6', -- For UI display
+  icon_name TEXT DEFAULT 'target', -- For UI display
+  sort_order INTEGER DEFAULT 0
+);
+
+-- Indexes
+CREATE INDEX idx_pirs_active ON pirs(active);
+CREATE INDEX idx_pirs_category_code ON pirs(category_code);
+CREATE INDEX idx_pirs_sort_order ON pirs(sort_order);
+```
+
+#### rss_feeds - RSS Feed Management
+
+Manage RSS feeds with PIR targeting and automated processing.
+
+```sql
+CREATE TABLE rss_feeds (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Feed identification
+  name TEXT NOT NULL,
+  url TEXT NOT NULL UNIQUE,
+  description TEXT,
+
+  -- Configuration
+  refresh_interval INTEGER DEFAULT 3600, -- Seconds between updates
+  active BOOLEAN DEFAULT TRUE,
+
+  -- PIR targeting
+  target_pirs UUID[], -- Array of PIR IDs this feed should target
+
+  -- Processing configuration
+  auto_process BOOLEAN DEFAULT TRUE, -- Automatically process new items
+  priority_boost INTEGER DEFAULT 0, -- -5 to +5 priority adjustment
+
+  -- Status tracking
+  last_fetched TIMESTAMP WITH TIME ZONE,
+  last_successful_fetch TIMESTAMP WITH TIME ZONE,
+  last_item_count INTEGER DEFAULT 0,
+  status TEXT CHECK (status IN ('active', 'inactive', 'error', 'rate_limited')) DEFAULT 'active',
+  error_message TEXT,
+  consecutive_failures INTEGER DEFAULT 0,
+
+  -- User management
+  created_by UUID REFERENCES auth.users(id),
+
+  -- Feed metadata
+  feed_title TEXT, -- From RSS feed itself
+  feed_description TEXT, -- From RSS feed itself
+  last_build_date TIMESTAMP WITH TIME ZONE,
+  etag TEXT, -- For efficient fetching
+  last_modified TEXT, -- For efficient fetching
+
+  -- Configuration
+  custom_headers JSONB, -- Custom HTTP headers for fetching
+  auth_config JSONB, -- Authentication configuration if needed
+  parsing_config JSONB -- Custom parsing rules
+);
+
+-- Indexes
+CREATE INDEX idx_rss_feeds_active ON rss_feeds(active);
+CREATE INDEX idx_rss_feeds_last_fetched ON rss_feeds(last_fetched);
+CREATE INDEX idx_rss_feeds_status ON rss_feeds(status);
+```
+
+#### rss_feed_items - RSS Item Processing
+
+Store individual RSS items before processing into intelligence items.
+
+```sql
+CREATE TABLE rss_feed_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  rss_feed_id UUID REFERENCES rss_feeds(id) ON DELETE CASCADE,
+
+  -- RSS item data
+  title TEXT NOT NULL,
+  description TEXT,
+  content TEXT, -- Full content if available
+  link TEXT,
+  pub_date TIMESTAMP WITH TIME ZONE,
+  author TEXT,
+  categories TEXT[], -- RSS categories
+
+  -- Processing status
+  processed BOOLEAN DEFAULT FALSE,
+  intelligence_item_id UUID REFERENCES intelligence_items(id),
+
+  -- Deduplication
+  guid TEXT, -- RSS GUID for deduplication
+  content_hash TEXT, -- Hash of content for deduplication
+
+  -- Original data
+  raw_data JSONB -- Store original RSS item data
+);
+
+-- Indexes
+CREATE INDEX idx_rss_feed_items_feed_id ON rss_feed_items(rss_feed_id);
+CREATE INDEX idx_rss_feed_items_processed ON rss_feed_items(processed);
+CREATE INDEX idx_rss_feed_items_pub_date ON rss_feed_items(pub_date DESC);
+CREATE INDEX idx_rss_feed_items_guid ON rss_feed_items(guid);
+CREATE INDEX idx_rss_feed_items_content_hash ON rss_feed_items(content_hash);
+```
+
+## Intelligence Processing Tables
 
 ### 1. intelligence_items
 
@@ -22,8 +170,9 @@ CREATE TABLE intelligence_items (
   summary TEXT,
   quote TEXT,
 
-  -- Classification fields
-  category TEXT CHECK (category IN ('ukraine', 'sabotage', 'insider', 'none')) DEFAULT 'none',
+  -- Classification fields (now dynamic via PIR references)
+  category TEXT DEFAULT 'none', -- Legacy field, use pir_id for new items
+  pir_id UUID REFERENCES pirs(id), -- Dynamic PIR reference
   priority TEXT CHECK (priority IN ('high', 'medium', 'low')) DEFAULT 'low',
   confidence INTEGER CHECK (confidence >= 0 AND confidence <= 100),
 
@@ -32,6 +181,7 @@ CREATE TABLE intelligence_items (
   source_type TEXT CHECK (source_type IN ('csv', 'rss', 'manual', 'api')) DEFAULT 'manual',
   original_url TEXT,
   author TEXT,
+  rss_feed_item_id UUID REFERENCES rss_feed_items(id), -- Link to RSS source
 
   -- Processing information
   ai_processed BOOLEAN DEFAULT FALSE,
@@ -218,7 +368,7 @@ CREATE INDEX idx_reports_status ON reports(status);
 
 ### 6. pir_coverage
 
-Track Priority Intelligence Requirements coverage and metrics.
+Track Priority Intelligence Requirements coverage and metrics for dynamic PIRs.
 
 ```sql
 CREATE TABLE pir_coverage (
@@ -226,9 +376,10 @@ CREATE TABLE pir_coverage (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
-  -- PIR details
-  pir_name TEXT NOT NULL, -- 'Ukraine', 'Industrial Sabotage', 'Insider Threats'
-  pir_category TEXT CHECK (pir_category IN ('ukraine', 'sabotage', 'insider')) NOT NULL,
+  -- PIR reference (now dynamic)
+  pir_id UUID REFERENCES pirs(id) ON DELETE CASCADE,
+  pir_name TEXT NOT NULL, -- Cached for performance
+  pir_category TEXT NOT NULL, -- Cached category_code
 
   -- Time period
   period_start TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -245,12 +396,18 @@ CREATE TABLE pir_coverage (
   ai_processed_count INTEGER DEFAULT 0,
   manual_count INTEGER DEFAULT 0,
 
+  -- RSS feed contribution
+  rss_items_count INTEGER DEFAULT 0,
+  csv_items_count INTEGER DEFAULT 0,
+  manual_items_count INTEGER DEFAULT 0,
+
   -- Metadata
   notes TEXT,
   calculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes
+CREATE INDEX idx_pir_coverage_pir_id ON pir_coverage(pir_id);
 CREATE INDEX idx_pir_coverage_category ON pir_coverage(pir_category);
 CREATE INDEX idx_pir_coverage_period ON pir_coverage(period_start, period_end);
 ```

@@ -597,15 +597,7 @@
 
             setupHeader() {
                 const headerContainer = document.getElementById('header-container');
-                const navigationLinks = [
-                    { href: './index.html', text: 'Dashboard' },
-                    { href: './processor.html', text: 'Data Processor' },
-                    { href: './feed.html', text: 'Intelligence Feed' },
-                    { href: './reports.html', text: 'Reports' },
-                    { href: './admin.html', text: 'Admin', primary: true }
-                ];
-                
-                headerContainer.innerHTML = Persimmon.ui.createHeader('Admin', navigationLinks);
+                headerContainer.innerHTML = Persimmon.ui.createHeader('Admin', 'admin');
             },
 
             // Page navigation
@@ -896,8 +888,11 @@
             // System Information
             async updateSystemInfo() {
                 try {
-                    document.getElementById('total-pirs').textContent = this.pirs.length;
-                    document.getElementById('active-feeds').textContent = this.rssFeeds.filter(f => f.active).length;
+                    // Wait a bit to ensure data is loaded
+                    setTimeout(() => {
+                        document.getElementById('total-pirs').textContent = this.pirs.length;
+                        document.getElementById('active-feeds').textContent = this.rssFeeds.filter(f => f.active).length;
+                    }, 100);
                     
                     if (PersimmonDB && PersimmonDB.isAvailable()) {
                         const stats = await PersimmonDB.getDashboardStats();
@@ -918,14 +913,20 @@
                         const isConnected = await PersimmonDB.testConnection();
                         if (isConnected) {
                             statusContainer.innerHTML = `
-                                <div style="color: var(--success-green); font-weight: 500;">✅ Database Connected</div>
+                                <div style="display: flex; align-items: center; gap: 8px; color: var(--success-green); font-weight: 500;">
+                                    <div style="width: 8px; height: 8px; background: var(--success-green); border-radius: 50%;"></div>
+                                    Database Connected
+                                </div>
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                                     All PIR and RSS feed operations will be persisted to Supabase.
                                 </div>
                             `;
                         } else {
                             statusContainer.innerHTML = `
-                                <div style="color: var(--error-red); font-weight: 500;">❌ Database Connection Failed</div>
+                                <div style="display: flex; align-items: center; gap: 8px; color: var(--error-red); font-weight: 500;">
+                                    <div style="width: 8px; height: 8px; background: var(--error-red); border-radius: 50%;"></div>
+                                    Database Connection Failed
+                                </div>
                                 <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                                     Operating in fallback mode. Changes will not be persisted.
                                 </div>
@@ -933,7 +934,10 @@
                         }
                     } else {
                         statusContainer.innerHTML = `
-                            <div style="color: var(--warning-amber); font-weight: 500;">⚠️ Database Not Available</div>
+                            <div style="display: flex; align-items: center; gap: 8px; color: var(--warning-amber); font-weight: 500;">
+                                <div style="width: 8px; height: 8px; background: var(--warning-amber); border-radius: 50%;"></div>
+                                Database Not Available
+                            </div>
                             <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                                 Database service not initialized. Operating in fallback mode.
                             </div>
@@ -941,7 +945,10 @@
                     }
                 } catch (error) {
                     statusContainer.innerHTML = `
-                        <div style="color: var(--error-red); font-weight: 500;">❌ Database Error</div>
+                        <div style="display: flex; align-items: center; gap: 8px; color: var(--error-red); font-weight: 500;">
+                            <div style="width: 8px; height: 8px; background: var(--error-red); border-radius: 50%;"></div>
+                            Database Error
+                        </div>
                         <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                             ${error.message}
                         </div>

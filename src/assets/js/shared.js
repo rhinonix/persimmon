@@ -429,8 +429,9 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
   ui: {
     // Create Persimmon header component with standardized navigation
     createHeader(pageTitle, currentPage = "") {
-      // Standardized navigation - always the same 4 buttons (in workflow order)
+      // Standardized navigation - Dashboard + 4 workflow buttons
       const standardNavigation = [
+        { href: "./index.html", text: "Dashboard", page: "dashboard" },
         { href: "./processor.html", text: "Data Processor", page: "processor" },
         { href: "./feed.html", text: "Intelligence Feed", page: "feed" },
         { href: "./reports.html", text: "Reports", page: "reports" },
@@ -440,9 +441,12 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
       // Auto-detect current page if not provided
       if (!currentPage) {
         const path = window.location.pathname;
-        if (path.includes("feed.html")) currentPage = "feed";
+        if (path.includes("index.html") || path.endsWith("/"))
+          currentPage = "dashboard";
+        else if (path.includes("feed.html")) currentPage = "feed";
         else if (path.includes("processor.html")) currentPage = "processor";
         else if (path.includes("reports.html")) currentPage = "reports";
+        else if (path.includes("admin.html")) currentPage = "admin";
         else if (path.includes("about.html")) currentPage = "about";
       }
 
