@@ -30,12 +30,29 @@ const PersimmonAI = {
     if (!apiKey || apiKey === "your-ai-api-key-here") {
       console.warn("AI API key not provided - using mock analysis mode");
       this.config.apiKey = null;
+      this.config.useEdgeFunction = false;
       return false;
     }
 
-    this.config.apiKey = apiKey;
-    console.log("AI Service initialized");
-    return true;
+    // Check if we have Supabase client available for Edge Functions
+    if (typeof PersimmonDB !== "undefined" && PersimmonDB.supabase) {
+      console.log("✅ Supabase Edge Function mode enabled");
+      console.log("🚀 Real AI processing via server-side Edge Function");
+      this.config.apiKey = apiKey;
+      this.config.useEdgeFunction = true;
+      this.config.edgeFunctionUrl = `${PersimmonDB.supabase.supabaseUrl}/functions/v1/analyze-intelligence`;
+      console.log("AI Service initialized (Edge Function mode)");
+      return true;
+    } else {
+      console.warn(
+        "⚠️  Supabase client not available - using mock analysis mode"
+      );
+      console.warn("🔧 For real AI: Ensure Supabase is properly initialized");
+      this.config.apiKey = null;
+      this.config.useEdgeFunction = false;
+      console.log("AI Service initialized (mock mode - no Supabase client)");
+      return false;
+    }
   },
 
   // Check if AI API is available
@@ -193,8 +210,8 @@ Respond with a JSON object containing:
 Only mark as relevant if it directly relates to one of our PIRs. Be conservative - it's better to reject marginally relevant items.`;
   },
 
-  // Make AI API request
-  async makeAPIRequest(prompt) {
+  // Make AI API request via Supabase Edge Function
+  async makeAPIRequest(content, source = "", metadata = {}) {
     if (!this.isAvailable()) {
       throw new Error("AI API not available - API key not configured");
     }
@@ -202,23 +219,21 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
     await this.waitForRateLimit();
 
     try {
-      const response = await fetch(this.config.apiUrl, {
+      // Get PIRs for the Edge Function
+      const pirs = await this.getActivePIRsContext();
+
+      // Call Supabase Edge Function
+      const response = await fetch(this.config.edgeFunctionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": this.config.apiKey,
-          "anthropic-version": this.config.version,
+          Authorization: `Bearer ${PersimmonDB.supabase.supabaseKey}`,
         },
         body: JSON.stringify({
-          model: this.config.model,
-          max_tokens: this.config.maxTokens,
-          temperature: this.config.temperature,
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
+          content: content,
+          source: source,
+          metadata: metadata,
+          pirs: pirs,
         }),
       });
 
@@ -227,21 +242,18 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          `AI API error: ${response.status} ${response.statusText} - ${
-            errorData.error?.message || "Unknown error"
+          `Edge Function error: ${response.status} ${response.statusText} - ${
+            errorData.error || errorData.details || "Unknown error"
           }`
         );
       }
 
-      const data = await response.json();
+      const analysis = await response.json();
 
-      if (!data.content || !data.content[0] || !data.content[0].text) {
-        throw new Error("Invalid response format from AI API");
-      }
-
-      return data.content[0].text;
+      // Edge Function returns the analysis directly, no need to parse
+      return analysis;
     } catch (error) {
-      console.error("AI API request failed:", error);
+      console.error("Edge Function request failed:", error);
       throw error;
     }
   },
@@ -331,14 +343,8 @@ Only mark as relevant if it directly relates to one of our PIRs. Be conservative
 
       console.log(`Analyzing content from ${source} with AI...`);
 
-      // Build prompt
-      const prompt = await this.buildAnalysisPrompt(content, source, metadata);
-
-      // Make API request
-      const responseText = await this.makeAPIRequest(prompt);
-
-      // Parse response
-      const analysis = this.parseAPIResponse(responseText);
+      // Make API request via Edge Function
+      const analysis = await this.makeAPIRequest(content, source, metadata);
 
       console.log(
         `Analysis complete: ${

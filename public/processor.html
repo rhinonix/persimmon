@@ -693,14 +693,24 @@
             },
 
             // Page navigation
-            showPage(pageId) {
+            showPage(pageId, buttonElement) {
                 // Hide all pages
                 document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
                 document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
                 
                 // Show selected page
                 document.getElementById(pageId + '-page').classList.add('active');
-                event.target.classList.add('active');
+                
+                // If buttonElement is provided, make it active
+                if (buttonElement) {
+                    buttonElement.classList.add('active');
+                } else {
+                    // Fallback: find the button by onclick attribute
+                    const activeButton = document.querySelector(`[onclick*="showPage('${pageId}')"]`);
+                    if (activeButton) {
+                        activeButton.classList.add('active');
+                    }
+                }
             },
 
             // File Upload Handling
