@@ -550,6 +550,12 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2 class="section-title">AI-Processed Items for Review</h2>
                             <div style="display: flex; gap: 8px;">
+                                <select id="review-source-filter" class="form-select" style="width: 160px;" onchange="PersimmonProcessor.filterReviewItems()">
+                                    <option value="all">All Sources</option>
+                                    <option value="rss">RSS Feeds</option>
+                                    <option value="upload">Uploads</option>
+                                    <option value="manual">Manual Entry</option>
+                                </select>
                                 <button class="btn btn-secondary" onclick="PersimmonProcessor.approveAll()">Approve All</button>
                                 <button class="btn" onclick="PersimmonProcessor.rejectAll()">Reject All</button>
                             </div>
@@ -923,9 +929,30 @@
                 `).join('');
             },
 
+            filterReviewItems() {
+                this.renderReviewItems();
+            },
+
             renderReviewItems() {
                 const container = document.getElementById('review-items');
-                const pendingItems = this.reviewItems.filter(item => !item.reviewed);
+                const sourceFilter = document.getElementById('review-source-filter').value;
+
+                let pendingItems = this.reviewItems.filter(item => !item.reviewed);
+
+                if (sourceFilter !== 'all') {
+                    pendingItems = pendingItems.filter(item => {
+                        if (sourceFilter === 'rss') {
+                            return item.originalData?.rss_feed_id || item.source?.toLowerCase().includes('rss');
+                        }
+                        if (sourceFilter === 'upload') {
+                            return item.source?.toLowerCase().includes('.csv') || item.source?.toLowerCase().includes('.json');
+                        }
+                        if (sourceFilter === 'manual') {
+                            return item.source === 'Manual Entry';
+                        }
+                        return true;
+                    });
+                }
                 
                 if (pendingItems.length === 0) {
                     container.innerHTML = '<div class="empty-state">No items pending review</div>';
