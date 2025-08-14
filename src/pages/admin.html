@@ -587,6 +587,7 @@
         const PersimmonAdmin = {
             pirs: [],
             rssFeeds: [],
+            editingFeedId: null,
 
             // Initialize admin interface
             init() {
@@ -785,14 +786,27 @@
                 document.getElementById('pir-form').reset();
             },
 
-            async showRSSForm() {
+            async showRSSForm(mode = 'add') {
                 document.getElementById('rss-modal').style.display = 'flex';
                 await this.setupPIRSelector();
+
+                const modalTitle = document.querySelector('#rss-modal .modal-title');
+                const submitButton = document.querySelector('#rss-form button[type="submit"]');
+
+                if (mode === 'edit') {
+                    modalTitle.textContent = 'Edit RSS Feed';
+                    submitButton.textContent = 'Update Feed';
+                } else {
+                    this.editingFeedId = null;
+                    modalTitle.textContent = 'Add RSS Feed';
+                    submitButton.textContent = 'Add Feed';
+                }
             },
 
             closeRSSForm() {
                 document.getElementById('rss-modal').style.display = 'none';
                 document.getElementById('rss-form').reset();
+                this.editingFeedId = null;
                 // Destroy PIR selector instance
                 PIRSelector.destroy('rss-pir-selector');
             },
@@ -867,25 +881,41 @@
                 };
 
                 try {
-                    if (PersimmonDB && PersimmonDB.isAvailable()) {
-                        await PersimmonDB.createRSSFeed(formData);
-                        Persimmon.notifications.success('RSS feed added successfully');
+                    if (this.editingFeedId) {
+                        // Update existing feed
+                        if (PersimmonDB && PersimmonDB.isAvailable()) {
+                            await PersimmonDB.updateRSSFeed(this.editingFeedId, formData);
+                            Persimmon.notifications.success('RSS feed updated successfully');
+                        } else {
+                            // Fallback
+                            const index = this.rssFeeds.findIndex(f => f.id === this.editingFeedId);
+                            if (index !== -1) {
+                                this.rssFeeds[index] = { ...this.rssFeeds[index], ...formData };
+                            }
+                            Persimmon.notifications.success('RSS feed updated (database unavailable)');
+                        }
                     } else {
-                        // Fallback - add to local array
-                        formData.id = Date.now().toString();
-                        formData.active = false;
-                        formData.status = 'inactive';
-                        formData.last_fetched = null;
-                        formData.last_item_count = 0;
-                        this.rssFeeds.push(formData);
-                        Persimmon.notifications.success('RSS feed added (database unavailable)');
+                        // Create new feed
+                        if (PersimmonDB && PersimmonDB.isAvailable()) {
+                            await PersimmonDB.createRSSFeed(formData);
+                            Persimmon.notifications.success('RSS feed added successfully');
+                        } else {
+                            // Fallback - add to local array
+                            formData.id = Date.now().toString();
+                            formData.active = false;
+                            formData.status = 'inactive';
+                            formData.last_fetched = null;
+                            formData.last_item_count = 0;
+                            this.rssFeeds.push(formData);
+                            Persimmon.notifications.success('RSS feed added (database unavailable)');
+                        }
                     }
                     
                     this.closeRSSForm();
                     this.loadRSSFeeds();
                 } catch (error) {
-                    console.error('Error creating RSS feed:', error);
-                    Persimmon.notifications.error('Failed to add RSS feed');
+                    console.error('Error saving RSS feed:', error);
+                    Persimmon.notifications.error('Failed to save RSS feed');
                 }
             },
 
@@ -969,8 +999,24 @@
                 Persimmon.notifications.info('PIR toggle functionality coming soon');
             },
 
-            editRSSFeed(id) {
-                Persimmon.notifications.info('RSS feed editing functionality coming soon');
+            async editRSSFeed(id) {
+                const feed = this.rssFeeds.find(f => f.id === id);
+                if (!feed) {
+                    Persimmon.notifications.error('Feed not found');
+                    return;
+                }
+
+                this.editingFeedId = id;
+                await this.showRSSForm('edit');
+
+                // Populate form
+                document.getElementById('rss-name').value = feed.name;
+                document.getElementById('rss-url').value = feed.url;
+                document.getElementById('rss-description').value = feed.description || '';
+                document.getElementById('rss-interval').value = feed.refresh_interval || 3600;
+
+                // Set PIRs
+                PIRSelector.setSelectedPIRs('rss-pir-selector', feed.target_pirs || []);
             },
 
             async toggleRSSFeed(id) {
