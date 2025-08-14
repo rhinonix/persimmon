@@ -278,16 +278,22 @@ const PIRSelector = {
 
   // Open dropdown
   openDropdown(instance) {
+    if (instance.isOpen) return;
     instance.isOpen = true;
     const dropdown = instance.container.querySelector(".pir-dropdown");
-    dropdown.classList.add("open");
+    if (dropdown) {
+      dropdown.classList.add("open");
+    }
   },
 
   // Close dropdown
   closeDropdown(instance) {
+    if (!instance.isOpen) return;
     instance.isOpen = false;
     const dropdown = instance.container.querySelector(".pir-dropdown");
-    dropdown.classList.remove("open");
+    if (dropdown) {
+      dropdown.classList.remove("open");
+    }
   },
 
   // Update dropdown content
