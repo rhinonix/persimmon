@@ -6,9 +6,28 @@
 const PIRSelector = {
   // Component instances
   instances: new Map(),
+  globalListenerAttached: false,
+
+  initGlobalListener() {
+    if (this.globalListenerAttached) return;
+    document.addEventListener("click", (e) => {
+      PIRSelector.instances.forEach((instance) => {
+        // Check if the instance is still valid and the click is outside
+        if (
+          instance.container &&
+          document.body.contains(instance.container) &&
+          !instance.container.contains(e.target)
+        ) {
+          PIRSelector.closeDropdown(instance);
+        }
+      });
+    });
+    this.globalListenerAttached = true;
+  },
 
   // Create a new PIR selector instance
   create(containerId, options = {}) {
+    this.initGlobalListener();
     const instance = {
       containerId,
       container: null,
@@ -198,13 +217,6 @@ const PIRSelector = {
         } else {
           this.addPIR(instance, pirId);
         }
-      }
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!container.contains(e.target)) {
-        this.closeDropdown(instance);
       }
     });
 
