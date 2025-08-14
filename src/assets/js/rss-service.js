@@ -11,9 +11,9 @@ const PersimmonRSS = {
 
   // CORS proxy options for RSS fetching
   corsProxies: [
+    "https://gkckzdqnplvsucqkauvl.supabase.co/functions/v1/cors-proxy",
     "https://api.allorigins.win/get?url=",
     "https://corsproxy.io/?",
-    "https://cors-anywhere.herokuapp.com/",
   ],
   currentProxyIndex: 0,
 
@@ -204,15 +204,26 @@ const PersimmonRSS = {
       const proxy = this.corsProxies[proxyIndex];
 
       try {
-        const proxyUrl = proxy + encodeURIComponent(url);
-        const response = await fetch(proxyUrl, {
-          method: "GET",
-          headers: {
-            Accept:
-              "application/rss+xml, application/xml, text/xml, application/atom+xml",
-          },
-          timeout: 30000,
-        });
+        let response;
+        if (proxy.includes("supabase.co")) {
+          // Our self-hosted proxy
+          response = await fetch(proxy, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+        } else {
+          // Public proxies
+          const proxyUrl = proxy + encodeURIComponent(url);
+          response = await fetch(proxyUrl, {
+            method: "GET",
+            headers: {
+              Accept:
+                "application/rss+xml, application/xml, text/xml, application/atom+xml",
+            },
+            timeout: 30000,
+          });
+        }
 
         if (response.ok) {
           this.currentProxyIndex = proxyIndex; // Remember working proxy
