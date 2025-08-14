@@ -757,9 +757,12 @@
                         </div>
                         <div class="rss-description">${feed.description}</div>
                         <div class="rss-targets">
-                            ${(feed.target_pirs || []).map(pir => 
-                                `<span class="target-tag">${pir.toUpperCase()}</span>`
-                            ).join('')}
+                            ${(feed.target_pirs || []).map(pirId => {
+                                const pir = this.pirs.find(p => p.id === pirId);
+                                const pirName = pir ? pir.name : pirId; // Fallback to ID if not found
+                                const pirColor = pir ? pir.color_code : '#6e6e73';
+                                return `<span class="target-tag" style="background-color: ${pirColor}; color: white;">${pirName.toUpperCase()}</span>`;
+                            }).join('')}
                         </div>
                         <div class="rss-meta">
                             <span>Last fetched: ${feed.last_fetched ? new Date(feed.last_fetched).toLocaleDateString() : 'Never'}</span>
