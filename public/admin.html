@@ -547,8 +547,8 @@
                 
                 <div class="form-group">
                     <label class="form-label">Target PIRs</label>
-                    <div class="checkbox-group" id="pir-checkboxes">
-                        <!-- PIR checkboxes will be populated here -->
+                    <div id="rss-pir-selector">
+                        <!-- PIR selector will be rendered here -->
                     </div>
                 </div>
                 
@@ -576,6 +576,8 @@
     <script src="./assets/js/shared.js"></script>
     <script src="./assets/js/database.js"></script>
     <script src="./assets/js/auth.js"></script>
+    <script src="./assets/js/rss-service.js"></script>
+    <script src="./assets/js/pir-selector.js"></script>
     
     <!-- Admin-specific functionality -->
     <script>
@@ -783,24 +785,26 @@
                 document.getElementById('pir-form').reset();
             },
 
-            showRSSForm() {
+            async showRSSForm() {
                 document.getElementById('rss-modal').style.display = 'flex';
-                this.populatePIRCheckboxes();
+                await this.setupPIRSelector();
             },
 
             closeRSSForm() {
                 document.getElementById('rss-modal').style.display = 'none';
                 document.getElementById('rss-form').reset();
+                // Destroy PIR selector instance
+                PIRSelector.destroy('rss-pir-selector');
             },
 
-            populatePIRCheckboxes() {
-                const container = document.getElementById('pir-checkboxes');
-                container.innerHTML = this.pirs.map(pir => `
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="pir-${pir.id}" value="${pir.id}">
-                        <label for="pir-${pir.id}">${pir.name}</label>
-                    </div>
-                `).join('');
+            async setupPIRSelector() {
+                // Create PIR selector instance
+                await PIRSelector.create('rss-pir-selector', {
+                    placeholder: 'Search and select target PIRs...',
+                    onSelectionChange: (selectedIds, selectedPIRs) => {
+                        console.log('PIR selection changed:', selectedPIRs.map(p => p.name));
+                    }
+                });
             },
 
             updateColorPreview() {
@@ -851,8 +855,8 @@
             async submitRSSForm(event) {
                 event.preventDefault();
                 
-                const selectedPIRs = Array.from(document.querySelectorAll('#pir-checkboxes input:checked'))
-                    .map(cb => cb.value);
+                // Get selected PIRs from PIR selector
+                const selectedPIRs = PIRSelector.getSelectedPIRs('rss-pir-selector');
                 
                 const formData = {
                     name: document.getElementById('rss-name').value,
@@ -969,8 +973,42 @@
                 Persimmon.notifications.info('RSS feed editing functionality coming soon');
             },
 
-            toggleRSSFeed(id) {
-                Persimmon.notifications.info('RSS feed toggle functionality coming soon');
+            async toggleRSSFeed(id) {
+                const feed = this.rssFeeds.find(f => f.id === id);
+                if (!feed) return;
+
+                try {
+                    if (PersimmonRSS && typeof PersimmonRSS.activateFeed === 'function') {
+                        let success;
+                        if (feed.active) {
+                            success = await PersimmonRSS.deactivateFeed(id);
+                            if (success) {
+                                Persimmon.notifications.success(`${feed.name} deactivated`);
+                            }
+                        } else {
+                            success = await PersimmonRSS.activateFeed(id);
+                            if (success) {
+                                Persimmon.notifications.success(`${feed.name} activated and will start fetching`);
+                            }
+                        }
+                        
+                        if (success) {
+                            // Reload feeds to show updated status
+                            await this.loadRSSFeeds();
+                        } else {
+                            Persimmon.notifications.error('Failed to toggle RSS feed');
+                        }
+                    } else {
+                        // Fallback for when RSS service is not available
+                        feed.active = !feed.active;
+                        feed.status = feed.active ? 'active' : 'inactive';
+                        this.renderRSSFeeds();
+                        Persimmon.notifications.info(`${feed.name} ${feed.active ? 'activated' : 'deactivated'} (RSS service not available)`);
+                    }
+                } catch (error) {
+                    console.error('Error toggling RSS feed:', error);
+                    Persimmon.notifications.error(`Failed to toggle ${feed.name}: ${error.message}`);
+                }
             }
         };
 

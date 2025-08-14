@@ -663,6 +663,7 @@
     <script src="./assets/js/ai-service.js"></script>
     <script src="./assets/js/database.js"></script>
     <script src="./assets/js/auth.js"></script>
+    <script src="./assets/js/rss-service.js"></script>
     
     <!-- Processor-specific functionality -->
     <script>
@@ -1114,9 +1115,39 @@
                 // In production, this would integrate with GDELT API
             },
 
-            fetchRSS() {
-                Persimmon.notifications.info('RSS feed integration would monitor security publications');
-                // In production, this would fetch RSS feeds
+            async fetchRSS() {
+                try {
+                    if (PersimmonRSS && typeof PersimmonRSS.refreshAllFeeds === 'function') {
+                        Persimmon.notifications.info('Refreshing all active RSS feeds...');
+                        
+                        const results = await PersimmonRSS.refreshAllFeeds();
+                        const successCount = results.filter(r => r.success).length;
+                        const failCount = results.filter(r => !r.success).length;
+                        
+                        if (successCount > 0) {
+                            Persimmon.notifications.success(`Successfully refreshed ${successCount} RSS feeds`);
+                            
+                            // Switch to processing queue to show new items
+                            setTimeout(() => {
+                                this.showPage('processing');
+                                document.querySelector('[onclick*="processing"]').classList.add('active');
+                            }, 1000);
+                        }
+                        
+                        if (failCount > 0) {
+                            Persimmon.notifications.warning(`${failCount} feeds failed to refresh`);
+                        }
+                        
+                        if (successCount === 0 && failCount === 0) {
+                            Persimmon.notifications.info('No active RSS feeds found. Configure feeds in Admin panel.');
+                        }
+                    } else {
+                        Persimmon.notifications.warning('RSS service not available. Please check Admin panel for RSS feed configuration.');
+                    }
+                } catch (error) {
+                    console.error('RSS fetch error:', error);
+                    Persimmon.notifications.error(`RSS fetch failed: ${error.message}`);
+                }
             },
 
             mockLiferaft() {
