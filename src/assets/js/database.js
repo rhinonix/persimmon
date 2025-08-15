@@ -1097,7 +1097,8 @@ const PersimmonDB = {
         .select(
           `
           *,
-          intelligence_items(title, content, source_name)
+          intelligence_items(title, content, source_name),
+          rss_feed_items(title, content, link, rss_feeds(name))
         `
         )
         .order("priority", { ascending: false })
