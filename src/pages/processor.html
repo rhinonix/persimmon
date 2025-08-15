@@ -533,7 +533,10 @@
                     <div style="font-size: 12px; color: #6e6e73;">
                         AI is analyzing raw data against PIRs: Ukraine, Industrial Sabotage, Insider Threats
                     </div>
-                    <button class="btn btn-secondary" onclick="PersimmonProcessor.pauseProcessing()">Pause Processing</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="PersimmonProcessor.processAllQueueItems()">Process All Items</button>
+                        <button class="btn btn-secondary" onclick="PersimmonProcessor.pauseProcessing()">Pause Processing</button>
+                    </div>
                 </div>
                 
                 <div class="processing-queue" id="processing-queue">
@@ -1242,6 +1245,112 @@
                 this.updateReviewStats();
                 
                 Persimmon.notifications.success('Manual item added to review queue');
+            },
+
+            // Process all items in the queue
+            async processAllQueueItems() {
+                const btn = event.target;
+                Persimmon.ui.setButtonLoading(btn, true, 'Processing...');
+                
+                try {
+                    // Get all pending queue items
+                    const queueItems = await PersimmonDB.getProcessingQueue('pending');
+                    
+                    if (queueItems.length === 0) {
+                        Persimmon.notifications.info('No pending items to process');
+                        return;
+                    }
+                    
+                    Persimmon.notifications.info(`Processing ${queueItems.length} queue items...`);
+                    
+                    let processedCount = 0;
+                    let errorCount = 0;
+                    
+                    // Process each item
+                    for (const queueItem of queueItems) {
+                        try {
+                            await this.processQueueItemFromDB(queueItem);
+                            processedCount++;
+                        } catch (error) {
+                            console.error(`Error processing queue item ${queueItem.id}:`, error);
+                            errorCount++;
+                        }
+                        
+                        // Update UI periodically
+                        if (processedCount % 5 === 0) {
+                            await this.renderProcessingQueue();
+                        }
+                    }
+                    
+                    // Final UI update
+                    await this.renderProcessingQueue();
+                    await this.renderReviewItems();
+                    this.updateReviewStats();
+                    
+                    if (processedCount > 0) {
+                        Persimmon.notifications.success(`Successfully processed ${processedCount} items! Check Review & Approve tab.`);
+                        
+                        // Auto-switch to review tab if items were processed
+                        setTimeout(() => {
+                            this.showPage('review');
+                            document.querySelector('[onclick*="review"]').classList.add('active');
+                        }, 2000);
+                    }
+                    
+                    if (errorCount > 0) {
+                        Persimmon.notifications.warning(`${errorCount} items failed to process`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error processing queue items:', error);
+                    Persimmon.notifications.error(`Processing failed: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
+                }
+            },
+
+            // Process a single queue item from database
+            async processQueueItemFromDB(queueItem) {
+                const intelligenceItem = queueItem.intelligence_items;
+                if (!intelligenceItem) {
+                    throw new Error('No intelligence item found for queue item');
+                }
+                
+                // Create a review item from the intelligence item
+                const reviewItem = {
+                    id: intelligenceItem.id,
+                    title: intelligenceItem.title,
+                    summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...',
+                    content: intelligenceItem.content,
+                    category: intelligenceItem.category || 'none',
+                    priority: intelligenceItem.priority || 'medium',
+                    source: intelligenceItem.source_name || 'Unknown Source',
+                    confidence: 85, // Default confidence for RSS items
+                    reasoning: 'Processed from RSS feed',
+                    quote: intelligenceItem.content?.substring(0, 150) + '...',
+                    originalData: {
+                        intelligence_item_id: intelligenceItem.id,
+                        queue_item_id: queueItem.id,
+                        rss_feed_id: intelligenceItem.original_data?.rss_feed_id
+                    },
+                    reviewed: false,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Add to review items
+                this.reviewItems.push(reviewItem);
+                
+                // Update queue item status in database (mark as completed)
+                try {
+                    await PersimmonDB.updateIntelligenceItem(intelligenceItem.id, {
+                        processing_status: 'processed',
+                        ai_processed: true
+                    });
+                } catch (error) {
+                    console.warn('Failed to update intelligence item status:', error);
+                }
+                
+                return reviewItem;
             },
 
             pauseProcessing() {
