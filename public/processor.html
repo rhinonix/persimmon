@@ -951,6 +951,26 @@
                 this.renderReviewItems();
             },
 
+            // Helper function for HTML sanitization
+            sanitizeHtml(str) {
+                if (!str) return '';
+                // Use Persimmon utils if available, otherwise simple fallback
+                if (Persimmon && Persimmon.utils && Persimmon.utils.sanitizeHtml) {
+                    return Persimmon.utils.sanitizeHtml(str);
+                }
+                // Simple fallback sanitization
+                return str.replace(/[<>&"']/g, function(match) {
+                    const escapeMap = {
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '&': '&amp;',
+                        '"': '&quot;',
+                        "'": '&#x27;'
+                    };
+                    return escapeMap[match];
+                });
+            },
+
             renderReviewItems() {
                 const container = document.getElementById('review-items');
                 const sourceFilter = document.getElementById('review-source-filter').value;
@@ -980,11 +1000,11 @@
                 container.innerHTML = pendingItems.map(item => `
                     <div class="review-item ${item.decision || ''}" id="review-${item.id}">
                         <div class="review-header">
-                            <div class="review-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
+                            <div class="review-title">${this.sanitizeHtml(item.title)}</div>
                             <div class="ai-confidence">${item.confidence}% confidence</div>
                         </div>
-                        <div class="review-summary">${Persimmon.utils.sanitizeHtml(item.summary)}</div>
-                        ${item.quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
+                        <div class="review-summary">${this.sanitizeHtml(item.summary)}</div>
+                        ${item.quote ? `<div class="item-quote">"${this.sanitizeHtml(item.quote)}"</div>` : ''}
                         <div class="review-meta">
                             <span>${item.source}</span>
                             <span>${item.category.toUpperCase()}</span>
@@ -1001,17 +1021,30 @@
 
             // Review Functions
             reviewItem(itemId, decision) {
+                console.log('reviewItem called:', itemId, decision);
+                
                 const item = this.reviewItems.find(i => i.id === itemId);
+                console.log('Found item:', item);
+                
                 if (item) {
                     item.reviewed = true;
                     item.decision = decision;
                     
                     if (decision === 'approve') {
                         this.approvedItems.push(item);
-                        Persimmon.notifications.success('Item approved');
+                        // Use alert as fallback if notifications don't work
+                        if (Persimmon && Persimmon.notifications) {
+                            Persimmon.notifications.success('Item approved');
+                        } else {
+                            alert('Item approved');
+                        }
                     } else {
                         this.rejectedItems.push(item);
-                        Persimmon.notifications.info('Item rejected');
+                        if (Persimmon && Persimmon.notifications) {
+                            Persimmon.notifications.info('Item rejected');
+                        } else {
+                            alert('Item rejected');
+                        }
                     }
                     
                     const element = document.getElementById(`review-${itemId}`);
@@ -1023,6 +1056,9 @@
                             this.updateReviewStats();
                         }, 1000);
                     }
+                } else {
+                    console.error('Item not found:', itemId);
+                    alert('Error: Item not found');
                 }
             },
 

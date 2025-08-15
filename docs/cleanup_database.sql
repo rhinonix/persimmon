@@ -17,8 +17,7 @@ DELETE FROM user_activity;
 UPDATE rss_feeds SET 
   status = 'inactive',
   last_fetched = NULL,
-  last_item_count = 0,
-  last_error = NULL;
+  last_item_count = 0;
 
 -- Show what's left after cleanup
 SELECT 'RSS Feeds after cleanup:' as status;
