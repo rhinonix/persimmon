@@ -215,6 +215,7 @@ const PersimmonDB = {
         ai_processed: item.ai_processed || false,
         ai_reasoning: item.ai_reasoning || null,
         processing_status: item.processing_status || "pending",
+        approved: item.approved || false,
         location: item.location || null,
         date_occurred: item.date_occurred || null,
         sentiment: item.sentiment || null,
