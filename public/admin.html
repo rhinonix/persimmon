@@ -993,13 +993,61 @@
                 }
             },
 
-            // Placeholder functions for edit/toggle operations
-            editPIR(id) {
-                Persimmon.notifications.info('PIR editing functionality coming soon');
+            // PIR edit and toggle operations
+            async editPIR(id) {
+                const pir = this.pirs.find(p => p.id === id);
+                if (!pir) {
+                    Persimmon.notifications.error('PIR not found');
+                    return;
+                }
+
+                // Set modal to edit mode
+                const modalTitle = document.querySelector('#pir-modal .modal-title');
+                const submitButton = document.querySelector('#pir-form button[type="submit"]');
+                modalTitle.textContent = 'Edit PIR';
+                submitButton.textContent = 'Update PIR';
+
+                // Populate form with existing PIR data
+                document.getElementById('pir-name').value = pir.name;
+                document.getElementById('pir-code').value = pir.category_code;
+                document.getElementById('pir-description').value = pir.description || '';
+                document.getElementById('pir-keywords').value = (pir.keywords || []).join(', ');
+                document.getElementById('pir-color').value = pir.color_code || '#3b82f6';
+                document.getElementById('pir-threshold').value = pir.confidence_threshold || 70;
+
+                // Store the editing PIR ID
+                this.editingPIRId = id;
+
+                // Show modal
+                this.showPIRForm();
             },
 
-            togglePIR(id) {
-                Persimmon.notifications.info('PIR toggle functionality coming soon');
+            async togglePIR(id) {
+                const pir = this.pirs.find(p => p.id === id);
+                if (!pir) {
+                    Persimmon.notifications.error('PIR not found');
+                    return;
+                }
+
+                try {
+                    const newStatus = !pir.active;
+                    
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        // Update PIR in database
+                        await PersimmonDB.updatePIR(id, { active: newStatus });
+                        Persimmon.notifications.success(`PIR ${pir.name} ${newStatus ? 'activated' : 'deactivated'}`);
+                    } else {
+                        // Fallback - update local array
+                        pir.active = newStatus;
+                        Persimmon.notifications.success(`PIR ${pir.name} ${newStatus ? 'activated' : 'deactivated'} (database unavailable)`);
+                    }
+                    
+                    // Reload PIRs to show updated status
+                    await this.loadPIRs();
+                } catch (error) {
+                    console.error('Error toggling PIR:', error);
+                    Persimmon.notifications.error(`Failed to toggle PIR: ${error.message}`);
+                }
             },
 
             async editRSSFeed(id) {
