@@ -1098,7 +1098,17 @@ const PersimmonDB = {
           `
           *,
           intelligence_items(title, content, source_name),
-          rss_feed_items(title, content, link, rss_feeds(name))
+          rss_feed_items(
+            id,
+            title,
+            description,
+            content,
+            link,
+            author,
+            pub_date,
+            categories,
+            rss_feeds(name, url)
+          )
         `
         )
         .order("priority", { ascending: false })

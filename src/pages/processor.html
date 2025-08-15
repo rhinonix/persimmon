@@ -1038,9 +1038,22 @@
                     }
                     
                     container.innerHTML = queueItems.map(item => {
-                        const intelligenceItem = item.intelligence_items;
-                        const title = intelligenceItem?.title || 'Untitled Item';
-                        const source = intelligenceItem?.source_name || 'Unknown Source';
+                        // Handle both intelligence items and RSS feed items
+                        let title, source;
+                        
+                        if (item.intelligence_items) {
+                            // Traditional intelligence item
+                            title = item.intelligence_items.title || 'Untitled Intelligence Item';
+                            source = item.intelligence_items.source_name || 'Unknown Source';
+                        } else if (item.rss_feed_items) {
+                            // RSS feed item
+                            title = item.rss_feed_items.title || 'Untitled RSS Item';
+                            source = item.rss_feed_items.rss_feeds?.name || 'RSS Feed';
+                        } else {
+                            // Fallback
+                            title = 'Unknown Item';
+                            source = 'Unknown Source';
+                        }
                         
                         return `
                             <div class="queue-item ${item.status}">
@@ -1607,61 +1620,76 @@
 
             // Process a single queue item from database
             async processQueueItemFromDB(queueItem) {
-                const intelligenceItem = queueItem.intelligence_items;
-                if (!intelligenceItem) {
-                    console.warn('No intelligence item found for queue item:', queueItem.id);
-                    // Still create a basic review item from queue data
-                    const reviewItem = {
-                        id: queueItem.intelligence_item_id || queueItem.id, // Use queue item ID as fallback
-                        title: 'RSS Feed Item',
-                        summary: 'RSS feed item processed from queue',
-                        content: 'Content not available',
-                        category: 'none',
+                let reviewItem;
+                
+                // Check if this is an RSS feed item or intelligence item
+                if (queueItem.rss_feed_items) {
+                    // RSS feed item - use RSS data
+                    const rssItem = queueItem.rss_feed_items;
+                    const feedName = rssItem.rss_feeds?.name || 'RSS Feed';
+                    
+                    reviewItem = {
+                        id: queueItem.id, // Use queue item ID
+                        title: rssItem.title || 'Untitled RSS Item',
+                        summary: rssItem.description || rssItem.content?.substring(0, 200) + '...' || 'No summary available',
+                        content: rssItem.content || rssItem.description || 'Content not available',
+                        category: 'ukraine', // Default category - could be improved with AI categorization
                         priority: 'medium',
-                        source: 'RSS Feed',
+                        source: feedName,
                         confidence: 85,
-                        reasoning: 'Processed from RSS feed queue',
-                        quote: '',
+                        reasoning: `Processed from RSS feed: ${feedName}`,
+                        quote: rssItem.description?.substring(0, 150) + '...' || '',
                         originalData: {
                             queue_item_id: queueItem.id,
-                            intelligence_item_id: queueItem.intelligence_item_id
+                            rss_feed_item_id: rssItem.id,
+                            rss_feed_name: feedName,
+                            original_url: rssItem.link
                         },
                         reviewed: false,
                         timestamp: new Date().toISOString()
                     };
+                } else if (queueItem.intelligence_items) {
+                    // Traditional intelligence item
+                    const intelligenceItem = queueItem.intelligence_items;
                     
-                    this.reviewItems.push(reviewItem);
-                    
-                    // Only try to update queue status
-                    try {
-                        await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
-                    } catch (error) {
-                        console.warn('Failed to update queue status:', error);
-                    }
-                    
-                    return reviewItem;
+                    reviewItem = {
+                        id: intelligenceItem.id || queueItem.id,
+                        title: intelligenceItem.title || 'Intelligence Item',
+                        summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...' || 'No summary available',
+                        content: intelligenceItem.content || 'Content not available',
+                        category: intelligenceItem.category || 'none',
+                        priority: intelligenceItem.priority || 'medium',
+                        source: intelligenceItem.source_name || 'Unknown Source',
+                        confidence: 85,
+                        reasoning: 'Processed intelligence item',
+                        quote: intelligenceItem.content?.substring(0, 150) + '...' || '',
+                        originalData: {
+                            intelligence_item_id: intelligenceItem.id,
+                            queue_item_id: queueItem.id
+                        },
+                        reviewed: false,
+                        timestamp: new Date().toISOString()
+                    };
+                } else {
+                    // Fallback for items without proper data
+                    reviewItem = {
+                        id: queueItem.id,
+                        title: 'Unknown Item',
+                        summary: 'Item processed from queue without complete data',
+                        content: 'Content not available',
+                        category: 'none',
+                        priority: 'medium',
+                        source: 'Unknown Source',
+                        confidence: 50,
+                        reasoning: 'Processed from queue with incomplete data',
+                        quote: '',
+                        originalData: {
+                            queue_item_id: queueItem.id
+                        },
+                        reviewed: false,
+                        timestamp: new Date().toISOString()
+                    };
                 }
-                
-                // Create a review item from the intelligence item
-                const reviewItem = {
-                    id: intelligenceItem.id || queueItem.intelligence_item_id || queueItem.id,
-                    title: intelligenceItem.title || 'RSS Feed Item',
-                    summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...' || 'No summary available',
-                    content: intelligenceItem.content || 'Content not available',
-                    category: intelligenceItem.category || 'none',
-                    priority: intelligenceItem.priority || 'medium',
-                    source: intelligenceItem.source_name || 'RSS Feed',
-                    confidence: 85, // Default confidence for RSS items
-                    reasoning: 'Processed from RSS feed',
-                    quote: intelligenceItem.content?.substring(0, 150) + '...' || '',
-                    originalData: {
-                        intelligence_item_id: intelligenceItem.id || queueItem.intelligence_item_id,
-                        queue_item_id: queueItem.id,
-                        rss_feed_id: intelligenceItem.original_data?.rss_feed_id
-                    },
-                    reviewed: false,
-                    timestamp: new Date().toISOString()
-                };
                 
                 // Add to review items
                 this.reviewItems.push(reviewItem);
@@ -1669,18 +1697,8 @@
                 // Update queue item status in database (mark as completed)
                 try {
                     await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
-                    
-                    // Only update intelligence item if we have a valid ID
-                    if (intelligenceItem.id && intelligenceItem.id !== 'undefined') {
-                        await PersimmonDB.updateIntelligenceItem(intelligenceItem.id, {
-                            processing_status: 'processed',
-                            ai_processed: true
-                        });
-                    } else {
-                        console.warn('Skipping intelligence item update - invalid ID:', intelligenceItem.id);
-                    }
                 } catch (error) {
-                    console.warn('Failed to update queue/intelligence item status:', error);
+                    console.warn('Failed to update queue status:', error);
                 }
                 
                 return reviewItem;

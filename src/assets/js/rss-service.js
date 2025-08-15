@@ -498,8 +498,11 @@ const PersimmonRSS = {
         storedItems.push(storedItem);
         console.log(`Stored RSS item: ${storedItem.title}`);
       } catch (error) {
-        console.error("Error storing RSS item:", error, item);
-        continue; // Skip problematic items
+        console.error("Error storing RSS item:", error);
+        console.error("RSS item data:", rssItemData);
+        console.error("Original item:", item);
+        // Continue processing other items even if one fails
+        continue;
       }
     }
 
