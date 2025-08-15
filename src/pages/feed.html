@@ -292,7 +292,7 @@
             renderFeedItem(item) {
                 return `
                     <div class="feed-item ${item.selected ? 'selected' : ''} ${item.aiProcessed ? 'ai-processed' : ''}" 
-                         data-id="${item.id}" onclick="PersimmonFeed.toggleExpand(${item.id})">
+                         data-id="${item.id}" onclick="PersimmonFeed.toggleExpand('${item.id}')">
                         <!-- Collapsed view -->
                         <div class="item-collapsed">
                             <div class="item-title-collapsed">
@@ -339,11 +339,11 @@
                                 </div>
                                 <div class="item-actions">
                                     <button class="action-btn ${item.selected ? 'secondary' : 'primary'}" 
-                                            onclick="event.stopPropagation(); PersimmonFeed.toggleSelection(${item.id})">
+                                            onclick="event.stopPropagation(); PersimmonFeed.toggleSelection('${item.id}')">
                                         ${item.selected ? 'Remove from Report' : 'Add to Report'}
                                     </button>
                                     ${item.link ? `<a href="${item.link}" target="_blank" class="action-btn" onclick="event.stopPropagation()">View Source</a>` : ''}
-                                    <button class="action-btn" onclick="event.stopPropagation(); PersimmonFeed.editItem(${item.id})">Edit</button>
+                                    <button class="action-btn" onclick="event.stopPropagation(); PersimmonFeed.editItem('${item.id}')">Edit</button>
                                 </div>
                             </div>
                         </div>
@@ -380,7 +380,7 @@
                 }
                 
                 container.innerHTML = this.selectedItems.map(item => `
-                    <div class="selected-item" onclick="PersimmonFeed.toggleSelection(${item.id})">
+                    <div class="selected-item" onclick="PersimmonFeed.toggleSelection('${item.id}')">
                         <div class="selected-item-title">${Persimmon.utils.truncate(item.title, 60)}</div>
                         <div class="selected-item-meta">
                             ${item.category.toUpperCase()} • ${item.priority.toUpperCase()}
