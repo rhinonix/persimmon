@@ -150,15 +150,70 @@
             },
 
             // Initialize feed
-            init() {
+            async init() {
                 this.setupHeader();
                 this.setupFilters();
                 this.setupSearch();
                 this.checkForImportedItems();
+                await this.loadFeedFromDatabase();
                 this.renderFeed();
                 this.renderSelectedItems();
                 this.updateSourceCount();
                 this.updateLastUpdated();
+            },
+
+            // Load feed items from database
+            async loadFeedFromDatabase() {
+                try {
+                    // Load approved intelligence items from database
+                    const dbItems = await PersimmonDB.getIntelligenceItems({
+                        approved: true,
+                        limit: 100
+                    });
+                    
+                    // Convert database items to feed format
+                    this.feedItems = dbItems.map(item => ({
+                        id: item.id,
+                        title: item.title,
+                        category: item.category || 'none',
+                        priority: item.priority || 'medium',
+                        source: item.source_name || 'Unknown Source',
+                        originalSource: item.source_type || '',
+                        date: item.created_at ? item.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                        time: item.created_at ? this.formatTimeAgo(item.created_at) : 'Unknown',
+                        summary: item.summary || item.content?.substring(0, 200) + '...' || 'No summary available',
+                        quote: item.quote || '',
+                        link: item.original_url || '',
+                        analystComment: item.analyst_comment || '',
+                        aiProcessed: item.ai_processed || false,
+                        confidence: item.confidence || null,
+                        selected: false
+                    }));
+                    
+                    console.log(`Loaded ${this.feedItems.length} approved intelligence items from database`);
+                    
+                } catch (error) {
+                    console.error('Error loading feed from database:', error);
+                    // Keep empty array if database fails
+                    this.feedItems = [];
+                }
+            },
+
+            // Format time ago helper
+            formatTimeAgo(dateString) {
+                const now = new Date();
+                const then = new Date(dateString);
+                const diffMs = now - then;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+                return then.toLocaleDateString();
             },
 
             setupHeader() {

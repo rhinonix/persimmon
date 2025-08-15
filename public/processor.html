@@ -1358,7 +1358,7 @@
             },
 
             // Export Functions
-            publishToFeed() {
+            async publishToFeed() {
                 if (this.approvedItems.length === 0) {
                     Persimmon.notifications.warning('No approved items to publish');
                     return;
@@ -1367,41 +1367,68 @@
                 const button = event.target;
                 Persimmon.ui.setButtonLoading(button, true, 'Publishing...');
                 
-                // Convert approved items to feed format
-                const feedItems = this.approvedItems.map(item => ({
-                    id: Persimmon.utils.generateId(),
-                    title: item.title,
-                    category: item.category,
-                    priority: item.priority,
-                    source: `Processed from ${item.source}`,
-                    originalSource: item.source,
-                    date: new Date().toISOString().split('T')[0],
-                    time: 'Just now',
-                    summary: item.summary,
-                    quote: item.quote || '',
-                    link: item.originalData?.url || '',
-                    analystComment: `AI-processed with ${item.confidence}% confidence. ${item.reasoning}`,
-                    aiProcessed: true,
-                    confidence: item.confidence,
-                    selected: false
-                }));
-                
-                // Store in localStorage to pass to feed
-                Persimmon.storage.set('newFeedItems', feedItems);
-                
-                setTimeout(() => {
-                    Persimmon.ui.setButtonLoading(button, false);
+                try {
+                    let publishedCount = 0;
+                    let errorCount = 0;
+                    
+                    // Save each approved item to the database
+                    for (const item of this.approvedItems) {
+                        try {
+                            // Update the intelligence item in database to mark as approved
+                            if (item.originalData?.intelligence_item_id) {
+                                await PersimmonDB.approveIntelligenceItem(item.originalData.intelligence_item_id);
+                                publishedCount++;
+                            } else {
+                                // Create new intelligence item if it doesn't exist in database
+                                const newItem = {
+                                    title: item.title,
+                                    content: item.content || item.summary,
+                                    summary: item.summary,
+                                    quote: item.quote || '',
+                                    category: item.category,
+                                    priority: item.priority,
+                                    source_name: item.source,
+                                    source_type: 'processed',
+                                    original_url: item.originalData?.url || '',
+                                    ai_processed: true,
+                                    ai_reasoning: item.reasoning,
+                                    confidence: item.confidence,
+                                    processing_status: 'processed',
+                                    analyst_comment: `AI-processed with ${item.confidence}% confidence. ${item.reasoning}`,
+                                    approved: true
+                                };
+                                
+                                await PersimmonDB.createIntelligenceItem(newItem);
+                                publishedCount++;
+                            }
+                        } catch (error) {
+                            console.error('Error publishing item:', error);
+                            errorCount++;
+                        }
+                    }
                     
                     // Clear approved items
                     this.approvedItems = [];
                     this.updateReviewStats();
                     
-                    Persimmon.notifications.success(`Published ${feedItems.length} items to intelligence feed!`);
-                    
-                    if (confirm('Items published successfully! Open Intelligence Feed to view the new items?')) {
-                        window.open('./feed.html', '_blank');
+                    if (publishedCount > 0) {
+                        Persimmon.notifications.success(`Successfully published ${publishedCount} items to intelligence feed!`);
+                        
+                        if (confirm('Items published successfully! Open Intelligence Feed to view the new items?')) {
+                            window.open('./feed.html', '_blank');
+                        }
                     }
-                }, 1500);
+                    
+                    if (errorCount > 0) {
+                        Persimmon.notifications.warning(`${errorCount} items failed to publish`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error publishing to feed:', error);
+                    Persimmon.notifications.error(`Publishing failed: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(button, false);
+                }
             },
 
             exportReview() {
