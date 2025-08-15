@@ -618,7 +618,7 @@
             async loadPIRs() {
                 try {
                     if (PersimmonDB && PersimmonDB.isAvailable()) {
-                        this.pirs = await PersimmonDB.getActivePIRs();
+                        this.pirs = await PersimmonDB.getAllPIRs();
                     } else {
                         // Use fallback data from database service
                         this.pirs = [
@@ -787,6 +787,13 @@
             closePIRForm() {
                 document.getElementById('pir-modal').style.display = 'none';
                 document.getElementById('pir-form').reset();
+                this.editingPIRId = null;
+                
+                // Reset modal to create mode
+                const modalTitle = document.querySelector('#pir-modal .modal-title');
+                const submitButton = document.querySelector('#pir-form button[type="submit"]');
+                modalTitle.textContent = 'Add New PIR';
+                submitButton.textContent = 'Create PIR';
             },
 
             async showRSSForm(mode = 'add') {
@@ -850,22 +857,38 @@
                 };
 
                 try {
-                    if (PersimmonDB && PersimmonDB.isAvailable()) {
-                        await PersimmonDB.createPIR(formData);
-                        Persimmon.notifications.success('PIR created successfully');
+                    if (this.editingPIRId) {
+                        // Update existing PIR
+                        if (PersimmonDB && PersimmonDB.isAvailable()) {
+                            await PersimmonDB.updatePIR(this.editingPIRId, formData);
+                            Persimmon.notifications.success('PIR updated successfully');
+                        } else {
+                            // Fallback - update local array
+                            const index = this.pirs.findIndex(p => p.id === this.editingPIRId);
+                            if (index !== -1) {
+                                this.pirs[index] = { ...this.pirs[index], ...formData };
+                            }
+                            Persimmon.notifications.success('PIR updated (database unavailable)');
+                        }
                     } else {
-                        // Fallback - add to local array
-                        formData.id = Date.now().toString();
-                        formData.active = true;
-                        this.pirs.push(formData);
-                        Persimmon.notifications.success('PIR created (database unavailable)');
+                        // Create new PIR
+                        if (PersimmonDB && PersimmonDB.isAvailable()) {
+                            await PersimmonDB.createPIR(formData);
+                            Persimmon.notifications.success('PIR created successfully');
+                        } else {
+                            // Fallback - add to local array
+                            formData.id = Date.now().toString();
+                            formData.active = true;
+                            this.pirs.push(formData);
+                            Persimmon.notifications.success('PIR created (database unavailable)');
+                        }
                     }
                     
                     this.closePIRForm();
                     this.loadPIRs();
                 } catch (error) {
-                    console.error('Error creating PIR:', error);
-                    Persimmon.notifications.error('Failed to create PIR');
+                    console.error('Error saving PIR:', error);
+                    Persimmon.notifications.error('Failed to save PIR');
                 }
             },
 

@@ -569,6 +569,81 @@ const PersimmonDB = {
     }
   },
 
+  async updatePIR(id, updates) {
+    try {
+      const { data, error } = await this.supabase
+        .from("pirs")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating PIR:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in updatePIR:", error);
+      throw error;
+    }
+  },
+
+  async getAllPIRs() {
+    try {
+      const { data, error } = await this.supabase
+        .from("pirs")
+        .select("*")
+        .order("sort_order")
+        .order("name");
+
+      if (error) {
+        console.error("Error fetching all PIRs:", error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getAllPIRs:", error);
+      // Return fallback PIRs
+      return [
+        {
+          id: "1",
+          name: "Ukraine Conflict",
+          category_code: "ukraine",
+          description:
+            "Frontline movements, political developments, strategic shifts",
+          keywords: ["ukraine", "ukrainian", "bakhmut", "kharkiv"],
+          color_code: "#0057b7",
+          active: true,
+          confidence_threshold: 70,
+        },
+        {
+          id: "2",
+          name: "Industrial Sabotage",
+          category_code: "sabotage",
+          description:
+            "Infrastructure attacks, facility threats, industrial espionage",
+          keywords: ["sabotage", "infrastructure", "industrial", "cyber"],
+          color_code: "#dc2626",
+          active: true,
+          confidence_threshold: 75,
+        },
+        {
+          id: "3",
+          name: "Insider Threats",
+          category_code: "insider",
+          description: "Employee security issues, background check problems",
+          keywords: ["employee", "insider", "security", "clearance"],
+          color_code: "#f59e0b",
+          active: true,
+          confidence_threshold: 80,
+        },
+      ];
+    }
+  },
+
   // ============================================================================
   // PIR COVERAGE
   // ============================================================================
