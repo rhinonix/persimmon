@@ -908,8 +908,8 @@
                 const container = document.getElementById('processing-queue');
                 
                 try {
-                    // Load real processing queue from database
-                    const queueItems = await PersimmonDB.getProcessingQueue();
+                    // Load only pending processing queue items from database
+                    const queueItems = await PersimmonDB.getProcessingQueue('pending');
                     
                     if (queueItems.length === 0) {
                         container.innerHTML = '<div class="empty-state">No items in processing queue</div>';
