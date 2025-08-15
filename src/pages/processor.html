@@ -1105,6 +1105,40 @@
                 });
             },
 
+            // Helper function to strip HTML tags and clean text content
+            stripHtml(str) {
+                if (!str) return '';
+                
+                // Create a temporary div to parse HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = str;
+                
+                // Get text content (this strips all HTML tags)
+                let cleanText = tempDiv.textContent || tempDiv.innerText || '';
+                
+                // Clean up common HTML entities
+                cleanText = cleanText
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#8230;/g, '...')
+                    .replace(/&#8217;/g, "'")
+                    .replace(/&#8216;/g, "'")
+                    .replace(/&#8220;/g, '"')
+                    .replace(/&#8221;/g, '"')
+                    .replace(/&#8211;/g, '-')
+                    .replace(/&#8212;/g, '—');
+                
+                // Clean up extra whitespace
+                cleanText = cleanText
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                
+                return cleanText;
+            },
+
             renderReviewItems() {
                 const container = document.getElementById('review-items');
                 const sourceFilter = document.getElementById('review-source-filter').value;
@@ -1628,17 +1662,21 @@
                     const rssItem = queueItem.rss_feed_items;
                     const feedName = rssItem.rss_feeds?.name || 'RSS Feed';
                     
+                    // Clean HTML content from RSS items
+                    const cleanDescription = this.stripHtml(rssItem.description || '');
+                    const cleanContent = this.stripHtml(rssItem.content || '');
+                    
                     reviewItem = {
                         id: queueItem.id, // Use queue item ID
                         title: rssItem.title || 'Untitled RSS Item',
-                        summary: rssItem.description || rssItem.content?.substring(0, 200) + '...' || 'No summary available',
-                        content: rssItem.content || rssItem.description || 'Content not available',
+                        summary: cleanDescription || cleanContent?.substring(0, 200) + '...' || 'No summary available',
+                        content: cleanContent || cleanDescription || 'Content not available',
                         category: 'ukraine', // Default category - could be improved with AI categorization
                         priority: 'medium',
                         source: feedName,
                         confidence: 85,
                         reasoning: `Processed from RSS feed: ${feedName}`,
-                        quote: rssItem.description?.substring(0, 150) + '...' || '',
+                        quote: cleanDescription?.substring(0, 150) + '...' || '',
                         originalData: {
                             queue_item_id: queueItem.id,
                             rss_feed_item_id: rssItem.id,
