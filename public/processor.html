@@ -1313,23 +1313,53 @@
             async processQueueItemFromDB(queueItem) {
                 const intelligenceItem = queueItem.intelligence_items;
                 if (!intelligenceItem) {
-                    throw new Error('No intelligence item found for queue item');
+                    console.warn('No intelligence item found for queue item:', queueItem.id);
+                    // Still create a basic review item from queue data
+                    const reviewItem = {
+                        id: queueItem.intelligence_item_id || queueItem.id, // Use queue item ID as fallback
+                        title: 'RSS Feed Item',
+                        summary: 'RSS feed item processed from queue',
+                        content: 'Content not available',
+                        category: 'none',
+                        priority: 'medium',
+                        source: 'RSS Feed',
+                        confidence: 85,
+                        reasoning: 'Processed from RSS feed queue',
+                        quote: '',
+                        originalData: {
+                            queue_item_id: queueItem.id,
+                            intelligence_item_id: queueItem.intelligence_item_id
+                        },
+                        reviewed: false,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    this.reviewItems.push(reviewItem);
+                    
+                    // Only try to update queue status
+                    try {
+                        await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    } catch (error) {
+                        console.warn('Failed to update queue status:', error);
+                    }
+                    
+                    return reviewItem;
                 }
                 
                 // Create a review item from the intelligence item
                 const reviewItem = {
-                    id: intelligenceItem.id,
-                    title: intelligenceItem.title,
-                    summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...',
-                    content: intelligenceItem.content,
+                    id: intelligenceItem.id || queueItem.intelligence_item_id || queueItem.id,
+                    title: intelligenceItem.title || 'RSS Feed Item',
+                    summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...' || 'No summary available',
+                    content: intelligenceItem.content || 'Content not available',
                     category: intelligenceItem.category || 'none',
                     priority: intelligenceItem.priority || 'medium',
-                    source: intelligenceItem.source_name || 'Unknown Source',
+                    source: intelligenceItem.source_name || 'RSS Feed',
                     confidence: 85, // Default confidence for RSS items
                     reasoning: 'Processed from RSS feed',
-                    quote: intelligenceItem.content?.substring(0, 150) + '...',
+                    quote: intelligenceItem.content?.substring(0, 150) + '...' || '',
                     originalData: {
-                        intelligence_item_id: intelligenceItem.id,
+                        intelligence_item_id: intelligenceItem.id || queueItem.intelligence_item_id,
                         queue_item_id: queueItem.id,
                         rss_feed_id: intelligenceItem.original_data?.rss_feed_id
                     },
@@ -1343,10 +1373,16 @@
                 // Update queue item status in database (mark as completed)
                 try {
                     await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
-                    await PersimmonDB.updateIntelligenceItem(intelligenceItem.id, {
-                        processing_status: 'processed',
-                        ai_processed: true
-                    });
+                    
+                    // Only update intelligence item if we have a valid ID
+                    if (intelligenceItem.id && intelligenceItem.id !== 'undefined') {
+                        await PersimmonDB.updateIntelligenceItem(intelligenceItem.id, {
+                            processing_status: 'processed',
+                            ai_processed: true
+                        });
+                    } else {
+                        console.warn('Skipping intelligence item update - invalid ID:', intelligenceItem.id);
+                    }
                 } catch (error) {
                     console.warn('Failed to update queue/intelligence item status:', error);
                 }
