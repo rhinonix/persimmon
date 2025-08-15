@@ -11,9 +11,9 @@ const PersimmonRSS = {
 
   // CORS proxy options for RSS fetching
   corsProxies: [
-    "https://gkckzdqnplvsucqkauvl.supabase.co/functions/v1/cors-proxy",
     "https://api.allorigins.win/get?url=",
     "https://corsproxy.io/?",
+    "https://gkckzdqnplvsucqkauvl.supabase.co/functions/v1/cors-proxy",
   ],
   currentProxyIndex: 0,
 
@@ -198,39 +198,65 @@ const PersimmonRSS = {
   },
 
   async fetchWithCORS(url) {
+    console.log(`Attempting to fetch RSS feed: ${url}`);
+
     // Try different CORS proxies
     for (let i = 0; i < this.corsProxies.length; i++) {
       const proxyIndex = (this.currentProxyIndex + i) % this.corsProxies.length;
       const proxy = this.corsProxies[proxyIndex];
 
+      console.log(
+        `Trying CORS proxy ${proxyIndex + 1}/${
+          this.corsProxies.length
+        }: ${proxy}`
+      );
+
       try {
         let response;
         if (proxy.includes("supabase.co")) {
           // Our self-hosted proxy
+          console.log("Using Supabase edge function proxy");
           response = await fetch(proxy, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${window.supabase?.supabaseKey || ""}`, // Add auth if available
+            },
             body: JSON.stringify({ url }),
           });
+
+          console.log(`Supabase proxy response status: ${response.status}`);
+
+          // If Supabase proxy fails with auth error, skip to next proxy
+          if (response.status === 401 || response.status === 403) {
+            console.warn(
+              "Supabase proxy authentication failed, trying next proxy"
+            );
+            continue;
+          }
         } else {
           // Public proxies
           const proxyUrl = proxy + encodeURIComponent(url);
+          console.log(`Using public proxy: ${proxyUrl}`);
           response = await fetch(proxyUrl, {
             method: "GET",
             headers: {
               Accept:
                 "application/rss+xml, application/xml, text/xml, application/atom+xml",
             },
-            timeout: 30000,
           });
         }
 
+        console.log(`Proxy response status: ${response.status}`);
+
         if (response.ok) {
           this.currentProxyIndex = proxyIndex; // Remember working proxy
+          console.log(`Successfully fetched via proxy: ${proxy}`);
 
           // Handle allorigins.win response format
           if (proxy.includes("allorigins.win")) {
             const data = await response.json();
+            console.log("Parsed allorigins.win response");
             return {
               ok: true,
               status: 200,
@@ -239,6 +265,15 @@ const PersimmonRSS = {
           }
 
           return response;
+        } else {
+          console.warn(`Proxy ${proxy} returned status ${response.status}`);
+          // Try to get error details
+          try {
+            const errorText = await response.text();
+            console.warn(`Error response: ${errorText.substring(0, 200)}`);
+          } catch (e) {
+            console.warn("Could not read error response");
+          }
         }
       } catch (error) {
         console.warn(`CORS proxy ${proxy} failed:`, error.message);
@@ -727,6 +762,84 @@ const PersimmonRSS = {
     }
 
     return results;
+  },
+
+  // Debug function to test RSS feed URLs directly
+  async debugFeedURL(url) {
+    console.log(`🔍 DEBUG: Testing RSS feed URL: ${url}`);
+
+    try {
+      // Test each proxy individually
+      for (let i = 0; i < this.corsProxies.length; i++) {
+        const proxy = this.corsProxies[i];
+        console.log(`\n📡 Testing proxy ${i + 1}: ${proxy}`);
+
+        try {
+          let response;
+          if (proxy.includes("supabase.co")) {
+            response = await fetch(proxy, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${window.supabase?.supabaseKey || ""}`,
+              },
+              body: JSON.stringify({ url }),
+            });
+          } else {
+            const proxyUrl = proxy + encodeURIComponent(url);
+            response = await fetch(proxyUrl, {
+              method: "GET",
+              headers: {
+                Accept:
+                  "application/rss+xml, application/xml, text/xml, application/atom+xml",
+              },
+            });
+          }
+
+          console.log(`   Status: ${response.status} ${response.statusText}`);
+
+          if (response.ok) {
+            let content;
+            if (proxy.includes("allorigins.win")) {
+              const data = await response.json();
+              content = data.contents;
+            } else {
+              content = await response.text();
+            }
+
+            console.log(`   Content length: ${content.length} characters`);
+            console.log(`   Content preview: ${content.substring(0, 200)}...`);
+
+            // Try to parse the XML
+            try {
+              const parsed = await this.parseFeedXML(content);
+              console.log(
+                `   ✅ Successfully parsed! Title: "${parsed.title}", Items: ${parsed.items.length}`
+              );
+              return {
+                success: true,
+                proxy: proxy,
+                title: parsed.title,
+                itemCount: parsed.items.length,
+                content: content,
+              };
+            } catch (parseError) {
+              console.log(`   ❌ Parse error: ${parseError.message}`);
+            }
+          } else {
+            const errorText = await response.text();
+            console.log(`   ❌ Error response: ${errorText.substring(0, 200)}`);
+          }
+        } catch (error) {
+          console.log(`   ❌ Proxy failed: ${error.message}`);
+        }
+      }
+
+      return { success: false, error: "All proxies failed" };
+    } catch (error) {
+      console.error(`🚨 DEBUG ERROR: ${error.message}`);
+      return { success: false, error: error.message };
+    }
   },
 };
 
