@@ -257,10 +257,26 @@ const PersimmonRSS = {
           if (proxy.includes("allorigins.win")) {
             const data = await response.json();
             console.log("Parsed allorigins.win response");
+
+            let content = data.contents;
+
+            // Check if content is base64 encoded (data URL format)
+            if (content && content.startsWith("data:")) {
+              try {
+                // Extract base64 part and decode it
+                const base64Data = content.split(",")[1];
+                content = atob(base64Data);
+                console.log("Decoded base64 content from allorigins.win");
+              } catch (error) {
+                console.warn("Failed to decode base64 content:", error);
+                // Fall back to original content
+              }
+            }
+
             return {
               ok: true,
               status: 200,
-              text: async () => data.contents,
+              text: async () => content,
             };
           }
 
