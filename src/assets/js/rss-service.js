@@ -505,34 +505,37 @@ const PersimmonRSS = {
 
     console.log(`Stored ${storedItems.length} new RSS items`);
 
-    // Stage 2: Process stored items into intelligence items
+    // Stage 2: Add stored items to processing queue (don't create intelligence items yet)
     for (const storedItem of storedItems) {
       try {
-        // Convert RSS item to intelligence item format
+        // Convert RSS item to intelligence item format (but don't save yet)
         const intelligenceItem = await this.convertRSSItemToIntelligenceItem(
           storedItem,
           feed,
           targetPIRs
         );
 
-        // Store in intelligence_items table
-        const createdItem = await PersimmonDB.createIntelligenceItem(
-          intelligenceItem
-        );
+        // Create intelligence item in pending state
+        const createdItem = await PersimmonDB.createIntelligenceItem({
+          ...intelligenceItem,
+          processing_status: "pending", // Ensure it's pending
+          ai_processed: false,
+          approved: false,
+        });
 
-        // Mark RSS feed item as processed and link to intelligence item
+        // Mark RSS feed item as linked (but not fully processed yet)
         await PersimmonDB.markRSSFeedItemProcessed(
           storedItem.id,
           createdItem.id
         );
 
-        // Add to processing queue for AI analysis
+        // Add to processing queue for review/AI analysis
         await PersimmonDB.addToProcessingQueue(createdItem.id, 5); // Medium priority
 
         processedItems.push(createdItem);
-        console.log(`Created intelligence item: ${createdItem.title}`);
+        console.log(`Added to processing queue: ${createdItem.title}`);
       } catch (error) {
-        console.error("Error converting RSS item to intelligence item:", error);
+        console.error("Error adding RSS item to processing queue:", error);
         // Mark the RSS item with error but don't stop processing
         await PersimmonDB.markRSSFeedItemError(storedItem.id, error.message);
         continue;

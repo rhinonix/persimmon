@@ -901,32 +901,47 @@
             },
 
             // Rendering Functions
-            renderProcessingQueue() {
+            async renderProcessingQueue() {
                 const container = document.getElementById('processing-queue');
                 
-                if (this.processingQueue.length === 0) {
-                    container.innerHTML = '<div class="empty-state">No items in processing queue</div>';
-                    return;
-                }
-                
-                container.innerHTML = this.processingQueue.map(item => `
-                    <div class="queue-item ${item.status}">
-                        <div class="item-content">
-                            <div class="item-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
-                            <div class="item-meta">
-                                ${item.source} • 
-                                ${item.category ? `${Persimmon.utils.capitalize(item.category)} • ` : ''}
-                                ${item.confidence ? `${item.confidence}% confidence` : 'Processing...'}
-                                ${item.reasoning ? ` • ${item.reasoning}` : ''}
-                                ${item.error ? ` • Error: ${item.error}` : ''}
+                try {
+                    // Load real processing queue from database
+                    const queueItems = await PersimmonDB.getProcessingQueue();
+                    
+                    if (queueItems.length === 0) {
+                        container.innerHTML = '<div class="empty-state">No items in processing queue</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = queueItems.map(item => {
+                        const intelligenceItem = item.intelligence_items;
+                        const title = intelligenceItem?.title || 'Untitled Item';
+                        const source = intelligenceItem?.source_name || 'Unknown Source';
+                        
+                        return `
+                            <div class="queue-item ${item.status}">
+                                <div class="item-content">
+                                    <div class="item-title">${Persimmon.utils.sanitizeHtml(title)}</div>
+                                    <div class="item-meta">
+                                        ${source} • 
+                                        Priority: ${item.priority} • 
+                                        Status: ${item.status.toUpperCase()} • 
+                                        Attempts: ${item.attempts}/${item.max_attempts}
+                                        ${item.error_message ? ` • Error: ${item.error_message}` : ''}
+                                    </div>
+                                </div>
+                                <div class="item-status status-${item.status}">
+                                    <div class="status-dot"></div>
+                                    <span>${item.status.toUpperCase()}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="item-status status-${item.status}">
-                            <div class="status-dot"></div>
-                            <span>${item.status.toUpperCase()}</span>
-                        </div>
-                    </div>
-                `).join('');
+                        `;
+                    }).join('');
+                    
+                } catch (error) {
+                    console.error('Error loading processing queue:', error);
+                    container.innerHTML = '<div class="empty-state">Error loading processing queue</div>';
+                }
             },
 
             filterReviewItems() {
