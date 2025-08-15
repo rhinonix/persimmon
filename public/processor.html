@@ -436,6 +436,127 @@
             font-size: 11px;
             color: var(--text-tertiary);
         }
+
+        /* Edit Modal Styles */
+        .edit-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .edit-modal {
+            background: var(--bg-white);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .edit-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .edit-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .edit-modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-medium);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-range {
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .edit-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-light);
+            background: var(--bg-secondary);
+        }
+
+        .edit-modal-footer .btn {
+            min-width: 100px;
+        }
     </style>
 </head>
 <body>
@@ -1092,25 +1213,137 @@
 
             editReviewItem(itemId) {
                 const item = this.reviewItems.find(i => i.id === itemId);
-                if (item) {
-                    const newTitle = prompt('Edit title:', item.title);
-                    if (newTitle) item.title = newTitle;
-                    
-                    const newSummary = prompt('Edit summary:', item.summary);
-                    if (newSummary) item.summary = newSummary;
-                    
-                    const newCategory = prompt('Edit category (ukraine/sabotage/insider):', item.category);
-                    if (newCategory && ['ukraine', 'sabotage', 'insider'].includes(newCategory)) {
-                        item.category = newCategory;
-                    }
-                    
-                    const newPriority = prompt('Edit priority (high/medium/low):', item.priority);
-                    if (newPriority && ['high', 'medium', 'low'].includes(newPriority)) {
-                        item.priority = newPriority;
-                    }
-                    
-                    this.renderReviewItems();
-                    Persimmon.notifications.success('Item updated');
+                if (!item) {
+                    alert('Item not found');
+                    return;
+                }
+                
+                this.showEditModal(item);
+            },
+
+            showEditModal(item) {
+                // Create modal HTML
+                const modalHtml = `
+                    <div class="edit-modal-overlay" id="edit-modal-overlay">
+                        <div class="edit-modal">
+                            <div class="edit-modal-header">
+                                <h3>Edit Intelligence Item</h3>
+                                <button class="close-btn" onclick="PersimmonProcessor.closeEditModal()">&times;</button>
+                            </div>
+                            <div class="edit-modal-body">
+                                <div class="form-group">
+                                    <label for="edit-title">Title:</label>
+                                    <input type="text" id="edit-title" class="form-input" value="${this.sanitizeHtml(item.title)}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="edit-summary">Summary:</label>
+                                    <textarea id="edit-summary" class="form-textarea" rows="4">${this.sanitizeHtml(item.summary)}</textarea>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="edit-category">Category:</label>
+                                        <select id="edit-category" class="form-select">
+                                            <option value="ukraine" ${item.category === 'ukraine' ? 'selected' : ''}>Ukraine</option>
+                                            <option value="sabotage" ${item.category === 'sabotage' ? 'selected' : ''}>Industrial Sabotage</option>
+                                            <option value="insider" ${item.category === 'insider' ? 'selected' : ''}>Insider Threats</option>
+                                            <option value="none" ${item.category === 'none' ? 'selected' : ''}>None</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="edit-priority">Priority:</label>
+                                        <select id="edit-priority" class="form-select">
+                                            <option value="high" ${item.priority === 'high' ? 'selected' : ''}>High</option>
+                                            <option value="medium" ${item.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                                            <option value="low" ${item.priority === 'low' ? 'selected' : ''}>Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="edit-quote">Key Quote (optional):</label>
+                                    <textarea id="edit-quote" class="form-textarea" rows="2">${this.sanitizeHtml(item.quote || '')}</textarea>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="edit-confidence">AI Confidence:</label>
+                                    <input type="range" id="edit-confidence" min="0" max="100" value="${item.confidence}" class="form-range">
+                                    <span id="confidence-value">${item.confidence}%</span>
+                                </div>
+                            </div>
+                            <div class="edit-modal-footer">
+                                <button class="btn btn-primary" onclick="PersimmonProcessor.saveEditedItem('${item.id}')">Save Changes</button>
+                                <button class="btn" onclick="PersimmonProcessor.closeEditModal()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add modal to page
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Add confidence slider listener
+                const confidenceSlider = document.getElementById('edit-confidence');
+                const confidenceValue = document.getElementById('confidence-value');
+                confidenceSlider.addEventListener('input', (e) => {
+                    confidenceValue.textContent = e.target.value + '%';
+                });
+                
+                // Focus on title field
+                document.getElementById('edit-title').focus();
+            },
+
+            saveEditedItem(itemId) {
+                const item = this.reviewItems.find(i => i.id === itemId);
+                if (!item) {
+                    alert('Item not found');
+                    return;
+                }
+                
+                // Get values from form
+                const title = document.getElementById('edit-title').value.trim();
+                const summary = document.getElementById('edit-summary').value.trim();
+                const category = document.getElementById('edit-category').value;
+                const priority = document.getElementById('edit-priority').value;
+                const quote = document.getElementById('edit-quote').value.trim();
+                const confidence = parseInt(document.getElementById('edit-confidence').value);
+                
+                // Validate required fields
+                if (!title) {
+                    alert('Title is required');
+                    return;
+                }
+                
+                if (!summary) {
+                    alert('Summary is required');
+                    return;
+                }
+                
+                // Update item
+                item.title = title;
+                item.summary = summary;
+                item.category = category;
+                item.priority = priority;
+                item.quote = quote;
+                item.confidence = confidence;
+                
+                // Close modal and refresh display
+                this.closeEditModal();
+                this.renderReviewItems();
+                
+                if (Persimmon && Persimmon.notifications) {
+                    Persimmon.notifications.success('Item updated successfully');
+                } else {
+                    alert('Item updated successfully');
+                }
+            },
+
+            closeEditModal() {
+                const modal = document.getElementById('edit-modal-overlay');
+                if (modal) {
+                    modal.remove();
                 }
             },
 
