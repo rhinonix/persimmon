@@ -381,42 +381,102 @@ const PersimmonRSS = {
       return [];
     }
 
+    console.log(`Processing ${items.length} RSS items for feed ${feedId}`);
+
     const processedItems = [];
     const feed = this.activeFeeds.get(feedId);
 
+    // Stage 1: Store raw RSS items in rss_feed_items table
+    const storedItems = [];
     for (const item of items) {
       try {
         // Create content hash for deduplication
         const contentHash = await this.generateContentHash(item);
 
-        // Check if item already exists
-        const existingItem = await this.checkItemExists(contentHash);
+        // Check if item already exists in rss_feed_items
+        const existingItem = await PersimmonDB.getRSSFeedItemByHash(
+          contentHash
+        );
         if (existingItem) {
+          console.log(`Skipping duplicate RSS item: ${item.title}`);
           continue; // Skip duplicate
         }
 
+        // Also check by GUID if available
+        if (item.guid) {
+          const existingByGuid = await PersimmonDB.getRSSFeedItemByGuid(
+            feedId,
+            item.guid
+          );
+          if (existingByGuid) {
+            console.log(`Skipping duplicate RSS item by GUID: ${item.title}`);
+            continue;
+          }
+        }
+
+        // Create RSS feed item record
+        const rssItemData = {
+          rss_feed_id: feedId,
+          title: item.title || "Untitled RSS Item",
+          description: item.description || null,
+          content: item.content || item.description || null,
+          link: item.link || null,
+          pub_date: item.pubDate ? new Date(item.pubDate).toISOString() : null,
+          author: item.author || null,
+          categories: item.categories || [],
+          guid: item.guid || null,
+          content_hash: contentHash,
+          raw_data: item, // Store original RSS item data
+        };
+
+        const storedItem = await PersimmonDB.createRSSFeedItem(rssItemData);
+        storedItems.push(storedItem);
+        console.log(`Stored RSS item: ${storedItem.title}`);
+      } catch (error) {
+        console.error("Error storing RSS item:", error, item);
+        continue; // Skip problematic items
+      }
+    }
+
+    console.log(`Stored ${storedItems.length} new RSS items`);
+
+    // Stage 2: Process stored items into intelligence items
+    for (const storedItem of storedItems) {
+      try {
         // Convert RSS item to intelligence item format
-        const intelligenceItem = await this.convertToIntelligenceItem(
-          item,
+        const intelligenceItem = await this.convertRSSItemToIntelligenceItem(
+          storedItem,
           feed,
           targetPIRs
         );
 
-        // Store in database
+        // Store in intelligence_items table
         const createdItem = await PersimmonDB.createIntelligenceItem(
           intelligenceItem
+        );
+
+        // Mark RSS feed item as processed and link to intelligence item
+        await PersimmonDB.markRSSFeedItemProcessed(
+          storedItem.id,
+          createdItem.id
         );
 
         // Add to processing queue for AI analysis
         await PersimmonDB.addToProcessingQueue(createdItem.id, 5); // Medium priority
 
         processedItems.push(createdItem);
+        console.log(`Created intelligence item: ${createdItem.title}`);
       } catch (error) {
-        console.error("Error processing RSS item:", error);
-        continue; // Skip problematic items
+        console.error("Error converting RSS item to intelligence item:", error);
+        // Mark the RSS item with error but don't stop processing
+        await PersimmonDB.markRSSFeedItemError(storedItem.id, error.message);
+        continue;
       }
     }
 
+    console.log(
+      `Successfully processed ${processedItems.length} RSS items into intelligence items`
+    );
     return processedItems;
   },
 
@@ -459,6 +519,62 @@ const PersimmonRSS = {
         guid: rssItem.guid,
         categories: rssItem.categories,
         target_pirs: targetPIRs,
+      },
+    };
+  },
+
+  async convertRSSItemToIntelligenceItem(storedRSSItem, feed, targetPIRs) {
+    // Determine primary category based on target PIRs
+    const primaryCategory = targetPIRs.length > 0 ? targetPIRs[0] : "none";
+
+    // Create content from available fields
+    const content =
+      storedRSSItem.content ||
+      storedRSSItem.description ||
+      storedRSSItem.title ||
+      "";
+
+    // Extract date
+    let dateOccurred = null;
+    if (storedRSSItem.pub_date) {
+      try {
+        dateOccurred = new Date(storedRSSItem.pub_date).toISOString();
+      } catch (error) {
+        console.warn("Invalid date format:", storedRSSItem.pub_date);
+      }
+    }
+
+    // Create summary with safe truncation
+    let summary = null;
+    if (storedRSSItem.description) {
+      summary =
+        storedRSSItem.description.length > 200
+          ? storedRSSItem.description.substring(0, 200) + "..."
+          : storedRSSItem.description;
+    }
+
+    return {
+      title: storedRSSItem.title || "RSS Item",
+      content: content,
+      summary: summary,
+      category: primaryCategory,
+      priority: "medium", // Default priority for RSS items
+      source_name: feed.name,
+      source_type: "rss",
+      original_url: storedRSSItem.link || null,
+      author: storedRSSItem.author || null,
+      ai_processed: false,
+      processing_status: "pending",
+      date_occurred: dateOccurred,
+      tags: ["rss", ...(storedRSSItem.categories || []).slice(0, 3)], // Limit categories
+      rss_feed_item_id: storedRSSItem.id, // Link to the RSS feed item
+      original_data: {
+        rss_feed_id: feed.id,
+        rss_feed_item_id: storedRSSItem.id,
+        guid: storedRSSItem.guid,
+        categories: storedRSSItem.categories || [],
+        target_pirs: targetPIRs,
+        content_hash: storedRSSItem.content_hash,
       },
     };
   },

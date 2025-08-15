@@ -712,6 +712,202 @@ const PersimmonDB = {
     }
   },
 
+  // ============================================================================
+  // RSS FEED ITEMS MANAGEMENT
+  // ============================================================================
+
+  async createRSSFeedItem(item) {
+    try {
+      const itemData = {
+        rss_feed_id: item.rss_feed_id,
+        title: item.title,
+        description: item.description || null,
+        content: item.content || null,
+        link: item.link || null,
+        pub_date: item.pub_date || null,
+        author: item.author || null,
+        categories: item.categories || [],
+        processed: false,
+        guid: item.guid || null,
+        content_hash: item.content_hash,
+        raw_data: item.raw_data || null,
+      };
+
+      const { data, error } = await this.supabase
+        .from("rss_feed_items")
+        .insert([itemData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating RSS feed item:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in createRSSFeedItem:", error);
+      throw error;
+    }
+  },
+
+  async getRSSFeedItems(feedId, filters = {}) {
+    try {
+      let query = this.supabase
+        .from("rss_feed_items")
+        .select("*")
+        .order("pub_date", { ascending: false });
+
+      if (feedId) {
+        query = query.eq("rss_feed_id", feedId);
+      }
+
+      if (filters.processed !== undefined) {
+        query = query.eq("processed", filters.processed);
+      }
+
+      if (filters.limit) {
+        query = query.limit(filters.limit);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching RSS feed items:", error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getRSSFeedItems:", error);
+      throw error;
+    }
+  },
+
+  async updateRSSFeedItem(id, updates) {
+    try {
+      const { data, error } = await this.supabase
+        .from("rss_feed_items")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating RSS feed item:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in updateRSSFeedItem:", error);
+      throw error;
+    }
+  },
+
+  async markRSSFeedItemProcessed(id, intelligenceItemId) {
+    try {
+      const updates = {
+        processed: true,
+        intelligence_item_id: intelligenceItemId,
+        processing_error: null,
+      };
+
+      return await this.updateRSSFeedItem(id, updates);
+    } catch (error) {
+      console.error("Database error in markRSSFeedItemProcessed:", error);
+      throw error;
+    }
+  },
+
+  async getRSSFeedItemByHash(contentHash) {
+    try {
+      const { data, error } = await this.supabase
+        .from("rss_feed_items")
+        .select("*")
+        .eq("content_hash", contentHash)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 = no rows returned
+        console.error("Error fetching RSS feed item by hash:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in getRSSFeedItemByHash:", error);
+      return null;
+    }
+  },
+
+  async getRSSFeedItemByGuid(feedId, guid) {
+    try {
+      const { data, error } = await this.supabase
+        .from("rss_feed_items")
+        .select("*")
+        .eq("rss_feed_id", feedId)
+        .eq("guid", guid)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 = no rows returned
+        console.error("Error fetching RSS feed item by GUID:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in getRSSFeedItemByGuid:", error);
+      return null;
+    }
+  },
+
+  async getUnprocessedRSSFeedItems(feedId = null, limit = 50) {
+    try {
+      let query = this.supabase
+        .from("rss_feed_items")
+        .select(
+          `
+          *,
+          rss_feeds(name, target_pirs)
+        `
+        )
+        .eq("processed", false)
+        .order("pub_date", { ascending: false })
+        .limit(limit);
+
+      if (feedId) {
+        query = query.eq("rss_feed_id", feedId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching unprocessed RSS feed items:", error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getUnprocessedRSSFeedItems:", error);
+      throw error;
+    }
+  },
+
+  async markRSSFeedItemError(id, errorMessage) {
+    try {
+      const updates = {
+        processing_error: errorMessage,
+      };
+
+      return await this.updateRSSFeedItem(id, updates);
+    } catch (error) {
+      console.error("Database error in markRSSFeedItemError:", error);
+      throw error;
+    }
+  },
+
   async createRSSFeed(feed) {
     try {
       const user = await PersimmonAuth.getCurrentUser();
