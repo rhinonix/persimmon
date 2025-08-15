@@ -1092,6 +1092,33 @@ const PersimmonDB = {
     }
   },
 
+  async updateProcessingQueueStatus(queueItemId, status, errorMessage = null) {
+    try {
+      const updates = {
+        status: status,
+        processed_at: status === "completed" ? new Date().toISOString() : null,
+        error_message: errorMessage,
+      };
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .update(updates)
+        .eq("id", queueItemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating processing queue status:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in updateProcessingQueueStatus:", error);
+      throw error;
+    }
+  },
+
   // ============================================================================
   // REAL-TIME SUBSCRIPTIONS
   // ============================================================================

@@ -1342,12 +1342,13 @@
                 
                 // Update queue item status in database (mark as completed)
                 try {
+                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
                     await PersimmonDB.updateIntelligenceItem(intelligenceItem.id, {
                         processing_status: 'processed',
                         ai_processed: true
                     });
                 } catch (error) {
-                    console.warn('Failed to update intelligence item status:', error);
+                    console.warn('Failed to update queue/intelligence item status:', error);
                 }
                 
                 return reviewItem;
