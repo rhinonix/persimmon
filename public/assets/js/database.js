@@ -1094,25 +1094,51 @@ const PersimmonDB = {
 
   async updateProcessingQueueStatus(queueItemId, status, errorMessage = null) {
     try {
+      console.log(
+        `Updating processing queue item ${queueItemId} to status: ${status}`
+      );
+
+      // Simple update with just the status field first
       const updates = {
         status: status,
-        processed_at: status === "completed" ? new Date().toISOString() : null,
-        error_message: errorMessage,
       };
+
+      // Only add processed_at if status is completed
+      if (status === "completed") {
+        updates.processed_at = new Date().toISOString();
+      }
+
+      // Only add error_message if provided
+      if (errorMessage) {
+        updates.error_message = errorMessage;
+      }
+
+      console.log("Update payload:", updates);
 
       const { data, error } = await this.supabase
         .from("processing_queue")
         .update(updates)
         .eq("id", queueItemId)
-        .select()
-        .single();
+        .select();
 
       if (error) {
-        console.error("Error updating processing queue status:", error);
+        console.error("Supabase error details:", error);
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        console.error("Error details:", error.details);
         throw error;
       }
 
-      return data;
+      // Check if any rows were updated
+      if (!data || data.length === 0) {
+        console.warn(
+          `No processing queue item found with ID: ${queueItemId} - item may have already been processed or deleted`
+        );
+        return null; // Return null instead of throwing error
+      }
+
+      console.log(`Successfully updated processing queue item ${queueItemId}`);
+      return data[0]; // Return first item since we expect only one
     } catch (error) {
       console.error("Database error in updateProcessingQueueStatus:", error);
       throw error;
