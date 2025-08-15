@@ -161,7 +161,7 @@ const PersimmonRSS = {
         last_item_count: newItems.length,
         feed_title: parsedFeed.title,
         feed_description: parsedFeed.description,
-        last_build_date: parsedFeed.lastBuildDate,
+        last_build_date: parsedFeed.lastBuildDate || null, // Ensure null instead of empty string
         error_message: null,
         consecutive_failures: 0,
       });

@@ -161,7 +161,7 @@ const PersimmonRSS = {
         last_item_count: newItems.length,
         feed_title: parsedFeed.title,
         feed_description: parsedFeed.description,
-        last_build_date: parsedFeed.lastBuildDate,
+        last_build_date: parsedFeed.lastBuildDate || null, // Ensure null instead of empty string
         error_message: null,
         consecutive_failures: 0,
       });
@@ -505,35 +505,15 @@ const PersimmonRSS = {
 
     console.log(`Stored ${storedItems.length} new RSS items`);
 
-    // Stage 2: Add stored items to processing queue (don't create intelligence items yet)
+    // Stage 2: Add stored RSS items directly to processing queue (without creating intelligence items)
     for (const storedItem of storedItems) {
       try {
-        // Convert RSS item to intelligence item format (but don't save yet)
-        const intelligenceItem = await this.convertRSSItemToIntelligenceItem(
-          storedItem,
-          feed,
-          targetPIRs
-        );
+        // Add RSS feed item directly to processing queue for review
+        // The intelligence item will be created later during the approval process
+        await PersimmonDB.addRSSItemToProcessingQueue(storedItem.id, 5); // Medium priority
 
-        // Create intelligence item in pending state
-        const createdItem = await PersimmonDB.createIntelligenceItem({
-          ...intelligenceItem,
-          processing_status: "pending", // Ensure it's pending
-          ai_processed: false,
-          approved: false,
-        });
-
-        // Mark RSS feed item as linked (but not fully processed yet)
-        await PersimmonDB.markRSSFeedItemProcessed(
-          storedItem.id,
-          createdItem.id
-        );
-
-        // Add to processing queue for review/AI analysis
-        await PersimmonDB.addToProcessingQueue(createdItem.id, 5); // Medium priority
-
-        processedItems.push(createdItem);
-        console.log(`Added to processing queue: ${createdItem.title}`);
+        processedItems.push(storedItem);
+        console.log(`Added RSS item to processing queue: ${storedItem.title}`);
       } catch (error) {
         console.error("Error adding RSS item to processing queue:", error);
         // Mark the RSS item with error but don't stop processing

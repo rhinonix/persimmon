@@ -1061,6 +1061,35 @@ const PersimmonDB = {
     }
   },
 
+  // Add RSS feed item directly to processing queue (for RSS workflow)
+  async addRSSItemToProcessingQueue(rssItemId, priority = 5) {
+    try {
+      const queueData = {
+        rss_feed_item_id: rssItemId, // Link to RSS item instead of intelligence item
+        status: "pending",
+        priority: priority,
+        attempts: 0,
+        max_attempts: 3,
+      };
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .insert([queueData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error adding RSS item to processing queue:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in addRSSItemToProcessingQueue:", error);
+      throw error;
+    }
+  },
+
   async getProcessingQueue(status = null) {
     try {
       let query = this.supabase
