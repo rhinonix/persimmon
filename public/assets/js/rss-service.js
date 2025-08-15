@@ -332,17 +332,26 @@ const PersimmonRSS = {
 
     const items = channel.querySelectorAll("item");
     items.forEach((item) => {
+      // Handle content:encoded with proper namespace-aware selection
+      let content = this.getTextContent(item, "description");
+      const contentEncoded =
+        item.querySelector("content\\:encoded") ||
+        item.querySelector("[*|encoded]") ||
+        item.getElementsByTagName("content:encoded")[0];
+      if (contentEncoded) {
+        content = contentEncoded.textContent.trim() || content;
+      }
+
       const feedItem = {
         title: this.getTextContent(item, "title"),
         description: this.getTextContent(item, "description"),
-        content:
-          this.getTextContent(item, "content:encoded") ||
-          this.getTextContent(item, "description"),
+        content: content,
         link: this.getTextContent(item, "link"),
         pubDate: this.getTextContent(item, "pubDate"),
         author:
           this.getTextContent(item, "author") ||
-          this.getTextContent(item, "dc:creator"),
+          this.getTextContent(item, "dc\\:creator") ||
+          this.getElementByTagName(item, "dc:creator"),
         guid: this.getTextContent(item, "guid"),
         categories: Array.from(item.querySelectorAll("category")).map((cat) =>
           cat.textContent.trim()
@@ -405,6 +414,11 @@ const PersimmonRSS = {
   getTextContent(parent, selector) {
     const element = parent.querySelector(selector);
     return element ? element.textContent.trim() : "";
+  },
+
+  getElementByTagName(parent, tagName) {
+    const elements = parent.getElementsByTagName(tagName);
+    return elements.length > 0 ? elements[0].textContent.trim() : "";
   },
 
   // ============================================================================
