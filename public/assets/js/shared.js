@@ -33,7 +33,16 @@ const Persimmon = {
         .replace(/â€"/g, "—") // Em dash
         .replace(/â€"/g, "–") // En dash
         .replace(/â€¦/g, "...") // Horizontal ellipsis
-        // Fix other common encoding issues
+
+        // Fix standalone â characters (very common in mojibake)
+        .replace(/Â/g, "") // Remove standalone Â characters
+        .replace(/â(?![€])/g, "") // Remove â not followed by €
+        .replace(/â\s/g, " ") // Remove â followed by space
+        .replace(/\sÂ\s/g, " ") // Remove Â surrounded by spaces
+        .replace(/Â$/g, "") // Remove Â at end of string
+        .replace(/^Â/g, "") // Remove Â at start of string
+
+        // Fix accented characters
         .replace(/Ã¡/g, "á")
         .replace(/Ã©/g, "é")
         .replace(/Ã­/g, "í")
@@ -44,19 +53,70 @@ const Persimmon = {
         .replace(/Ã¶/g, "ö")
         .replace(/Ã¤/g, "ä")
         .replace(/Ã§/g, "ç")
-        // Fix common double-encoded characters
-        .replace(/â/g, "") // Remove stray â characters that often appear before quotes
-        // Fix specific patterns from user's example
-        .replace(/Fleetâs/g, "Fleet's")
-        .replace(/Ukraineâs/g, "Ukraine's")
-        .replace(/countrys/g, "country's") // Fix the specific issue mentioned
-        .replace(/â\s/g, " ") // Remove â followed by space
-        // Fix more specific encoding patterns
+        .replace(/Ã /g, "à")
+        .replace(/Ã¨/g, "è")
+        .replace(/Ã¬/g, "ì")
+        .replace(/Ã²/g, "ò")
+        .replace(/Ã¹/g, "ù")
+        .replace(/Ã¢/g, "â")
+        .replace(/Ãª/g, "ê")
+        .replace(/Ã®/g, "î")
+        .replace(/Ã´/g, "ô")
+        .replace(/Ã»/g, "û")
+        .replace(/Ã£/g, "ã")
+        .replace(/Ã¥/g, "å")
+        .replace(/Ã¦/g, "æ")
+        .replace(/Ã¸/g, "ø")
+        .replace(/Ã¿/g, "ÿ")
+
+        // Fix more complex mojibake patterns
         .replace(/â€™s/g, "'s") // Possessive apostrophe
         .replace(/â€œ([^â€]+)â€/g, '"$1"') // Quoted text
         .replace(/â€˜([^â€]+)â€™/g, "'$1'") // Single quoted text
-        // Clean up multiple spaces
-        .replace(/\s+/g, " ")
+        .replace(/donâ€™t/g, "don't")
+        .replace(/canâ€™t/g, "can't")
+        .replace(/wonâ€™t/g, "won't")
+        .replace(/itâ€™s/g, "it's")
+        .replace(/thatâ€™s/g, "that's")
+        .replace(/thereâ€™s/g, "there's")
+        .replace(/hereâ€™s/g, "here's")
+        .replace(/whatâ€™s/g, "what's")
+        .replace(/whoâ€™s/g, "who's")
+        .replace(/whereâ€™s/g, "where's")
+        .replace(/whenâ€™s/g, "when's")
+        .replace(/whyâ€™s/g, "why's")
+        .replace(/howâ€™s/g, "how's")
+
+        // Fix specific patterns from user examples
+        .replace(/Fleetâs/g, "Fleet's")
+        .replace(/Ukraineâs/g, "Ukraine's")
+        .replace(/Russias/g, "Russia's")
+        .replace(/Chinas/g, "China's")
+        .replace(/countrys/g, "country's")
+        .replace(/companys/g, "company's")
+        .replace(/governments/g, "government's")
+        .replace(/peoples/g, "people's")
+        .replace(/nations/g, "nation's")
+
+        // Fix common word patterns with mojibake
+        .replace(/â€œ([^â€]+)â€/g, '"$1"') // Any quoted text
+        .replace(/â€˜([^â€]+)â€™/g, "'$1'") // Any single quoted text
+        .replace(/(\w+)â€™s/g, "$1's") // Any possessive form
+        .replace(/(\w+)â€™t/g, "$1't") // Contractions ending in 't
+        .replace(/(\w+)â€™ll/g, "$1'll") // Contractions with 'll
+        .replace(/(\w+)â€™ve/g, "$1've") // Contractions with 've
+        .replace(/(\w+)â€™re/g, "$1're") // Contractions with 're
+        .replace(/(\w+)â€™d/g, "$1'd") // Contractions with 'd
+        .replace(/(\w+)â€™m/g, "$1'm") // Contractions with 'm
+
+        // Fix spacing issues caused by mojibake removal
+        .replace(/\s+/g, " ") // Multiple spaces to single space
+        .replace(/\s+\./g, ".") // Space before period
+        .replace(/\s+,/g, ",") // Space before comma
+        .replace(/\s+;/g, ";") // Space before semicolon
+        .replace(/\s+:/g, ":") // Space before colon
+        .replace(/\s+!/g, "!") // Space before exclamation
+        .replace(/\s+\?/g, "?") // Space before question mark
         .trim();
 
       return fixedText;
