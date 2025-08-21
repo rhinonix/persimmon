@@ -1280,7 +1280,28 @@ const PersimmonDB = {
         `Updating processing queue item ${queueItemId} to status: ${status}`
       );
 
-      // Simple update with just the status field first
+      // First, check if the item exists
+      const { data: existingItem, error: checkError } = await this.supabase
+        .from("processing_queue")
+        .select("id, status, attempts")
+        .eq("id", queueItemId)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("Error checking if queue item exists:", checkError);
+        throw checkError;
+      }
+
+      if (!existingItem) {
+        console.warn(
+          `No processing queue item found with ID: ${queueItemId} - item may have already been processed or deleted`
+        );
+        return null; // Return null instead of throwing error
+      }
+
+      console.log(`Found existing queue item:`, existingItem);
+
+      // Prepare update payload
       const updates = {
         status: status,
       };
@@ -1288,6 +1309,11 @@ const PersimmonDB = {
       // Only add processed_at if status is completed
       if (status === "completed") {
         updates.processed_at = new Date().toISOString();
+      }
+
+      // Increment attempts if processing
+      if (status === "processing") {
+        updates.attempts = (existingItem.attempts || 0) + 1;
       }
 
       // Only add error_message if provided
@@ -1314,12 +1340,15 @@ const PersimmonDB = {
       // Check if any rows were updated
       if (!data || data.length === 0) {
         console.warn(
-          `No processing queue item found with ID: ${queueItemId} - item may have already been processed or deleted`
+          `Update operation returned no data for queue item ${queueItemId} - this may indicate RLS policy restrictions`
         );
-        return null; // Return null instead of throwing error
+        return null;
       }
 
-      console.log(`Successfully updated processing queue item ${queueItemId}`);
+      console.log(
+        `Successfully updated processing queue item ${queueItemId}:`,
+        data[0]
+      );
       return data[0]; // Return first item since we expect only one
     } catch (error) {
       console.error("Database error in updateProcessingQueueStatus:", error);

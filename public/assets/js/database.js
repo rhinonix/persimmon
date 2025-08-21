@@ -571,9 +571,20 @@ const PersimmonDB = {
 
   async updatePIR(id, updates) {
     try {
+      const user = await PersimmonAuth.getCurrentUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // Add updated_by field to track who made the change
+      const updateData = {
+        ...updates,
+        updated_by: user.id,
+      };
+
       const { data, error } = await this.supabase
         .from("pirs")
-        .update(updates)
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
@@ -1046,6 +1057,61 @@ const PersimmonDB = {
     }
   },
 
+  async deleteRSSFeed(id) {
+    try {
+      console.log(`[DB] Attempting to delete RSS feed with ID: ${id}`);
+
+      // First, check if the feed exists
+      const { data: existingFeed, error: checkError } = await this.supabase
+        .from("rss_feeds")
+        .select("id, name")
+        .eq("id", id)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("[DB] Error checking if feed exists:", checkError);
+        throw checkError;
+      }
+
+      if (!existingFeed) {
+        console.log(`[DB] Feed with ID ${id} not found in database`);
+        return true; // Consider it deleted if it doesn't exist
+      }
+
+      console.log(
+        `[DB] Found feed to delete: ${existingFeed.name} (${existingFeed.id})`
+      );
+
+      // Perform the deletion
+      const { data, error } = await this.supabase
+        .from("rss_feeds")
+        .delete()
+        .eq("id", id)
+        .select(); // Return deleted rows to confirm
+
+      if (error) {
+        console.error("[DB] Error deleting RSS feed:", error);
+        throw error;
+      }
+
+      console.log(`[DB] Deletion result:`, data);
+      console.log(`[DB] Number of rows deleted: ${data ? data.length : 0}`);
+
+      if (!data || data.length === 0) {
+        console.warn(`[DB] No rows were deleted for feed ID: ${id}`);
+        throw new Error(
+          `Failed to delete RSS feed: No rows were affected. This may be due to insufficient permissions or row-level security policies.`
+        );
+      }
+
+      console.log(`[DB] Successfully deleted RSS feed: ${existingFeed.name}`);
+      return true;
+    } catch (error) {
+      console.error("Database error in deleteRSSFeed:", error);
+      throw error;
+    }
+  },
+
   // ============================================================================
   // DATA SOURCES
   // ============================================================================
@@ -1214,7 +1280,28 @@ const PersimmonDB = {
         `Updating processing queue item ${queueItemId} to status: ${status}`
       );
 
-      // Simple update with just the status field first
+      // First, check if the item exists
+      const { data: existingItem, error: checkError } = await this.supabase
+        .from("processing_queue")
+        .select("id, status, attempts")
+        .eq("id", queueItemId)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("Error checking if queue item exists:", checkError);
+        throw checkError;
+      }
+
+      if (!existingItem) {
+        console.warn(
+          `No processing queue item found with ID: ${queueItemId} - item may have already been processed or deleted`
+        );
+        return null; // Return null instead of throwing error
+      }
+
+      console.log(`Found existing queue item:`, existingItem);
+
+      // Prepare update payload
       const updates = {
         status: status,
       };
@@ -1222,6 +1309,11 @@ const PersimmonDB = {
       // Only add processed_at if status is completed
       if (status === "completed") {
         updates.processed_at = new Date().toISOString();
+      }
+
+      // Increment attempts if processing
+      if (status === "processing") {
+        updates.attempts = (existingItem.attempts || 0) + 1;
       }
 
       // Only add error_message if provided
@@ -1248,15 +1340,46 @@ const PersimmonDB = {
       // Check if any rows were updated
       if (!data || data.length === 0) {
         console.warn(
-          `No processing queue item found with ID: ${queueItemId} - item may have already been processed or deleted`
+          `Update operation returned no data for queue item ${queueItemId} - this may indicate RLS policy restrictions`
         );
-        return null; // Return null instead of throwing error
+        return null;
       }
 
-      console.log(`Successfully updated processing queue item ${queueItemId}`);
+      console.log(
+        `Successfully updated processing queue item ${queueItemId}:`,
+        data[0]
+      );
       return data[0]; // Return first item since we expect only one
     } catch (error) {
       console.error("Database error in updateProcessingQueueStatus:", error);
+      throw error;
+    }
+  },
+
+  async deleteProcessingQueueItem(queueItemId) {
+    try {
+      console.log(`Deleting processing queue item ${queueItemId}`);
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .delete()
+        .eq("id", queueItemId)
+        .select();
+
+      if (error) {
+        console.error("Error deleting processing queue item:", error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn(`No processing queue item found with ID: ${queueItemId}`);
+        return false;
+      }
+
+      console.log(`Successfully deleted processing queue item ${queueItemId}`);
+      return true;
+    } catch (error) {
+      console.error("Database error in deleteProcessingQueueItem:", error);
       throw error;
     }
   },

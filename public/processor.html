@@ -657,6 +657,8 @@
                     <div style="display: flex; gap: 8px;">
                         <button class="btn btn-primary" onclick="PersimmonProcessor.processAllQueueItems()">Process All Items</button>
                         <button class="btn btn-secondary" onclick="PersimmonProcessor.pauseProcessing()">Pause Processing</button>
+                        <button class="btn" onclick="PersimmonProcessor.refreshQueue()">Refresh Queue</button>
+                        <button class="btn" onclick="PersimmonProcessor.clearCompleted()">Clear Completed</button>
                     </div>
                 </div>
                 
@@ -1039,32 +1041,39 @@
                     
                     container.innerHTML = queueItems.map(item => {
                         // Handle both intelligence items and RSS feed items
-                        let title, source;
+                        let title, source, content;
                         
                         if (item.intelligence_items) {
                             // Traditional intelligence item
                             title = item.intelligence_items.title || 'Untitled Intelligence Item';
                             source = item.intelligence_items.source_name || 'Unknown Source';
+                            content = item.intelligence_items.content || '';
                         } else if (item.rss_feed_items) {
                             // RSS feed item
                             title = item.rss_feed_items.title || 'Untitled RSS Item';
                             source = item.rss_feed_items.rss_feeds?.name || 'RSS Feed';
+                            content = item.rss_feed_items.description || item.rss_feed_items.content || '';
                         } else {
                             // Fallback
                             title = 'Unknown Item';
                             source = 'Unknown Source';
+                            content = '';
                         }
                         
+                        // Apply encoding fixes to all text content
+                        title = Persimmon.utils.fixTextEncoding(title);
+                        source = Persimmon.utils.fixTextEncoding(source);
+                        
                         return `
-                            <div class="queue-item ${item.status}">
+                            <div class="queue-item ${item.status}" data-queue-id="${item.id}">
                                 <div class="item-content">
                                     <div class="item-title">${Persimmon.utils.sanitizeHtml(title)}</div>
                                     <div class="item-meta">
-                                        ${source} • 
+                                        ${Persimmon.utils.sanitizeHtml(source)} • 
                                         Priority: ${item.priority} • 
                                         Status: ${item.status.toUpperCase()} • 
                                         Attempts: ${item.attempts}/${item.max_attempts}
-                                        ${item.error_message ? ` • Error: ${item.error_message}` : ''}
+                                        ${item.error_message ? ` • Error: ${Persimmon.utils.sanitizeHtml(item.error_message)}` : ''}
                                     </div>
                                 </div>
                                 <div class="item-status status-${item.status}">
@@ -1085,59 +1094,6 @@
                 this.renderReviewItems();
             },
 
-            // Helper function for HTML sanitization
-            sanitizeHtml(str) {
-                if (!str) return '';
-                // Use Persimmon utils if available, otherwise simple fallback
-                if (Persimmon && Persimmon.utils && Persimmon.utils.sanitizeHtml) {
-                    return Persimmon.utils.sanitizeHtml(str);
-                }
-                // Simple fallback sanitization
-                return str.replace(/[<>&"']/g, function(match) {
-                    const escapeMap = {
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '&': '&amp;',
-                        '"': '&quot;',
-                        "'": '&#x27;'
-                    };
-                    return escapeMap[match];
-                });
-            },
-
-            // Helper function to strip HTML tags and clean text content
-            stripHtml(str) {
-                if (!str) return '';
-                
-                // Create a temporary div to parse HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = str;
-                
-                // Get text content (this strips all HTML tags)
-                let cleanText = tempDiv.textContent || tempDiv.innerText || '';
-                
-                // Clean up common HTML entities
-                cleanText = cleanText
-                    .replace(/&nbsp;/g, ' ')
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&quot;/g, '"')
-                    .replace(/&#8230;/g, '...')
-                    .replace(/&#8217;/g, "'")
-                    .replace(/&#8216;/g, "'")
-                    .replace(/&#8220;/g, '"')
-                    .replace(/&#8221;/g, '"')
-                    .replace(/&#8211;/g, '-')
-                    .replace(/&#8212;/g, '—');
-                
-                // Clean up extra whitespace
-                cleanText = cleanText
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                return cleanText;
-            },
 
             renderReviewItems() {
                 const container = document.getElementById('review-items');
@@ -1165,26 +1121,34 @@
                     return;
                 }
                 
-                container.innerHTML = pendingItems.map(item => `
-                    <div class="review-item ${item.decision || ''}" id="review-${item.id}">
-                        <div class="review-header">
-                            <div class="review-title">${this.sanitizeHtml(item.title)}</div>
-                            <div class="ai-confidence">${item.confidence}% confidence</div>
+                container.innerHTML = pendingItems.map(item => {
+                    // Apply encoding fixes to all text content before rendering
+                    const title = Persimmon.utils.fixTextEncoding(item.title || '');
+                    const summary = Persimmon.utils.fixTextEncoding(item.summary || '');
+                    const quote = Persimmon.utils.fixTextEncoding(item.quote || '');
+                    const source = Persimmon.utils.fixTextEncoding(item.source || '');
+                    
+                    return `
+                        <div class="review-item ${item.decision || ''}" id="review-${item.id}">
+                            <div class="review-header">
+                                <div class="review-title">${Persimmon.utils.sanitizeHtml(title)}</div>
+                                <div class="ai-confidence">${item.confidence}% confidence</div>
+                            </div>
+                            <div class="review-summary">${Persimmon.utils.sanitizeHtml(summary)}</div>
+                            ${quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(quote)}"</div>` : ''}
+                            <div class="review-meta">
+                                <span>${Persimmon.utils.sanitizeHtml(source)}</span>
+                                <span>${item.category.toUpperCase()}</span>
+                                <span>${item.priority.toUpperCase()} PRIORITY</span>
+                            </div>
+                            <div class="review-actions">
+                                <button class="action-btn approve" onclick="PersimmonProcessor.reviewItem('${item.id}', 'approve')">Approve</button>
+                                <button class="action-btn reject" onclick="PersimmonProcessor.reviewItem('${item.id}', 'reject')">Reject</button>
+                                <button class="action-btn" onclick="PersimmonProcessor.editReviewItem('${item.id}')">Edit</button>
+                            </div>
                         </div>
-                        <div class="review-summary">${this.sanitizeHtml(item.summary)}</div>
-                        ${item.quote ? `<div class="item-quote">"${this.sanitizeHtml(item.quote)}"</div>` : ''}
-                        <div class="review-meta">
-                            <span>${item.source}</span>
-                            <span>${item.category.toUpperCase()}</span>
-                            <span>${item.priority.toUpperCase()} PRIORITY</span>
-                        </div>
-                        <div class="review-actions">
-                            <button class="action-btn approve" onclick="PersimmonProcessor.reviewItem('${item.id}', 'approve')">Approve</button>
-                            <button class="action-btn reject" onclick="PersimmonProcessor.reviewItem('${item.id}', 'reject')">Reject</button>
-                            <button class="action-btn" onclick="PersimmonProcessor.editReviewItem('${item.id}')">Edit</button>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             },
 
             // Review Functions
@@ -1280,12 +1244,12 @@
                             <div class="edit-modal-body">
                                 <div class="form-group">
                                     <label for="edit-title">Title:</label>
-                                    <input type="text" id="edit-title" class="form-input" value="${this.sanitizeHtml(item.title)}">
+                                    <input type="text" id="edit-title" class="form-input" value="${Persimmon.utils.sanitizeHtml(item.title)}">
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="edit-summary">Summary:</label>
-                                    <textarea id="edit-summary" class="form-textarea" rows="4">${this.sanitizeHtml(item.summary)}</textarea>
+                                    <textarea id="edit-summary" class="form-textarea" rows="4">${Persimmon.utils.sanitizeHtml(item.summary)}</textarea>
                                 </div>
                                 
                                 <div class="form-row">
@@ -1311,7 +1275,7 @@
                                 
                                 <div class="form-group">
                                     <label for="edit-quote">Key Quote (optional):</label>
-                                    <textarea id="edit-quote" class="form-textarea" rows="2">${this.sanitizeHtml(item.quote || '')}</textarea>
+                                    <textarea id="edit-quote" class="form-textarea" rows="2">${Persimmon.utils.sanitizeHtml(item.quote || '')}</textarea>
                                 </div>
                                 
                                 <div class="form-group">
@@ -1656,6 +1620,14 @@
             async processQueueItemFromDB(queueItem) {
                 let reviewItem;
                 
+                // First, mark the item as processing in the database
+                try {
+                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'processing');
+                    console.log(`Marked queue item ${queueItem.id} as processing`);
+                } catch (error) {
+                    console.warn('Failed to update queue status to processing:', error);
+                }
+                
                 // Check if this is an RSS feed item or intelligence item
                 if (queueItem.rss_feed_items) {
                     // RSS feed item - use RSS data
@@ -1663,8 +1635,8 @@
                     const feedName = rssItem.rss_feeds?.name || 'RSS Feed';
                     
                     // Clean HTML content from RSS items
-                    const cleanDescription = this.stripHtml(rssItem.description || '');
-                    const cleanContent = this.stripHtml(rssItem.content || '');
+                    const cleanDescription = Persimmon.utils.stripHtml(rssItem.description || '');
+                    const cleanContent = Persimmon.utils.stripHtml(rssItem.content || '');
                     
                     reviewItem = {
                         id: queueItem.id, // Use queue item ID
@@ -1734,9 +1706,16 @@
                 
                 // Update queue item status in database (mark as completed)
                 try {
-                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    const result = await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    console.log(`Successfully marked queue item ${queueItem.id} as completed:`, result);
                 } catch (error) {
-                    console.warn('Failed to update queue status:', error);
+                    console.error('Failed to update queue status to completed:', error);
+                    // Try to mark as error instead
+                    try {
+                        await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'error', error.message);
+                    } catch (errorUpdateError) {
+                        console.error('Failed to mark queue item as error:', errorUpdateError);
+                    }
                 }
                 
                 return reviewItem;
@@ -1754,6 +1733,74 @@
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                     Persimmon.notifications.info('Processing resumed');
+                }
+            },
+
+            // Refresh the processing queue display
+            async refreshQueue() {
+                const btn = event.target;
+                Persimmon.ui.setButtonLoading(btn, true, 'Refreshing...');
+                
+                try {
+                    await this.renderProcessingQueue();
+                    Persimmon.notifications.success('Processing queue refreshed');
+                } catch (error) {
+                    console.error('Error refreshing queue:', error);
+                    Persimmon.notifications.error(`Failed to refresh queue: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
+                }
+            },
+
+            // Clear completed items from the processing queue
+            async clearCompleted() {
+                const btn = event.target;
+                Persimmon.ui.setButtonLoading(btn, true, 'Clearing...');
+                
+                try {
+                    // Get completed queue items
+                    const completedItems = await PersimmonDB.getProcessingQueue('completed');
+                    
+                    if (completedItems.length === 0) {
+                        Persimmon.notifications.info('No completed items to clear');
+                        return;
+                    }
+                    
+                    // Confirm with user
+                    if (!confirm(`Clear ${completedItems.length} completed items from the queue?`)) {
+                        return;
+                    }
+                    
+                    let clearedCount = 0;
+                    let errorCount = 0;
+                    
+                    // Delete each completed item
+                    for (const item of completedItems) {
+                        try {
+                            await PersimmonDB.deleteProcessingQueueItem(item.id);
+                            clearedCount++;
+                        } catch (error) {
+                            console.error(`Error deleting queue item ${item.id}:`, error);
+                            errorCount++;
+                        }
+                    }
+                    
+                    // Refresh the queue display
+                    await this.renderProcessingQueue();
+                    
+                    if (clearedCount > 0) {
+                        Persimmon.notifications.success(`Cleared ${clearedCount} completed items from queue`);
+                    }
+                    
+                    if (errorCount > 0) {
+                        Persimmon.notifications.warning(`${errorCount} items failed to clear`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error clearing completed items:', error);
+                    Persimmon.notifications.error(`Failed to clear completed items: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
                 }
             }
         };

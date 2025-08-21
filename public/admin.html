@@ -365,6 +365,17 @@
             border-radius: 4px;
             border: 1px solid var(--border-medium);
         }
+        
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+            border: 1px solid #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background-color: #b91c1c;
+            border-color: #b91c1c;
+        }
     </style>
 </head>
 <body>
@@ -590,10 +601,11 @@
             editingFeedId: null,
 
             // Initialize admin interface
-            init() {
+            async init() {
                 this.setupHeader();
-                this.loadPIRs();
-                this.loadRSSFeeds();
+                // Load PIRs first, then RSS feeds to ensure PIR data is available for rendering
+                await this.loadPIRs();
+                await this.loadRSSFeeds();
                 this.updateSystemInfo();
                 this.checkDatabaseStatus();
             },
@@ -612,6 +624,11 @@
                 // Show selected page
                 document.getElementById(pageId + '-page').classList.add('active');
                 event.target.classList.add('active');
+                
+                // Re-render RSS feeds when switching to RSS tab to ensure PIR data is available
+                if (pageId === 'rss' && this.rssFeeds.length > 0) {
+                    this.renderRSSFeeds();
+                }
             },
 
             // PIR Management
@@ -773,6 +790,7 @@
                             <button class="btn" onclick="PersimmonAdmin.toggleRSSFeed('${feed.id}')">
                                 ${feed.active ? 'Deactivate' : 'Activate'}
                             </button>
+                            <button class="btn btn-danger" onclick="PersimmonAdmin.deleteRSSFeed('${feed.id}')">Delete</button>
                         </div>
                     </div>
                 `).join('');
@@ -1128,6 +1146,52 @@
                 } catch (error) {
                     console.error('Error toggling RSS feed:', error);
                     Persimmon.notifications.error(`Failed to toggle ${feed.name}: ${error.message}`);
+                }
+            },
+
+            async deleteRSSFeed(id) {
+                const feed = this.rssFeeds.find(f => f.id === id);
+                if (!feed) {
+                    Persimmon.notifications.error('RSS feed not found');
+                    return;
+                }
+
+                // Show confirmation dialog
+                const confirmed = confirm(`Are you sure you want to delete the RSS feed "${feed.name}"?\n\nThis action cannot be undone and will also delete all associated RSS feed items.`);
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    console.log(`Attempting to delete RSS feed: ${feed.name} (ID: ${id})`);
+                    
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        // Delete from database
+                        console.log('Deleting from database...');
+                        await PersimmonDB.deleteRSSFeed(id);
+                        console.log('Database deletion successful');
+                        Persimmon.notifications.success(`RSS feed "${feed.name}" deleted successfully`);
+                    } else {
+                        // Fallback - remove from local array
+                        console.log('Database unavailable, using fallback deletion...');
+                        const index = this.rssFeeds.findIndex(f => f.id === id);
+                        if (index !== -1) {
+                            this.rssFeeds.splice(index, 1);
+                            console.log(`Removed feed from local array at index ${index}`);
+                        }
+                        Persimmon.notifications.success(`RSS feed "${feed.name}" deleted (database unavailable)`);
+                    }
+                    
+                    // Force immediate UI update by re-rendering
+                    console.log('Refreshing RSS feeds display...');
+                    this.renderRSSFeeds();
+                    
+                    // Also reload feeds to ensure consistency
+                    await this.loadRSSFeeds();
+                    console.log('RSS feed deletion completed');
+                } catch (error) {
+                    console.error('Error deleting RSS feed:', error);
+                    Persimmon.notifications.error(`Failed to delete RSS feed: ${error.message}`);
                 }
             }
         };

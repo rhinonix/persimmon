@@ -1041,32 +1041,39 @@
                     
                     container.innerHTML = queueItems.map(item => {
                         // Handle both intelligence items and RSS feed items
-                        let title, source;
+                        let title, source, content;
                         
                         if (item.intelligence_items) {
                             // Traditional intelligence item
                             title = item.intelligence_items.title || 'Untitled Intelligence Item';
                             source = item.intelligence_items.source_name || 'Unknown Source';
+                            content = item.intelligence_items.content || '';
                         } else if (item.rss_feed_items) {
                             // RSS feed item
                             title = item.rss_feed_items.title || 'Untitled RSS Item';
                             source = item.rss_feed_items.rss_feeds?.name || 'RSS Feed';
+                            content = item.rss_feed_items.description || item.rss_feed_items.content || '';
                         } else {
                             // Fallback
                             title = 'Unknown Item';
                             source = 'Unknown Source';
+                            content = '';
                         }
                         
+                        // Apply encoding fixes to all text content
+                        title = Persimmon.utils.fixTextEncoding(title);
+                        source = Persimmon.utils.fixTextEncoding(source);
+                        
                         return `
-                            <div class="queue-item ${item.status}">
+                            <div class="queue-item ${item.status}" data-queue-id="${item.id}">
                                 <div class="item-content">
                                     <div class="item-title">${Persimmon.utils.sanitizeHtml(title)}</div>
                                     <div class="item-meta">
-                                        ${source} • 
+                                        ${Persimmon.utils.sanitizeHtml(source)} • 
                                         Priority: ${item.priority} • 
                                         Status: ${item.status.toUpperCase()} • 
                                         Attempts: ${item.attempts}/${item.max_attempts}
-                                        ${item.error_message ? ` • Error: ${item.error_message}` : ''}
+                                        ${item.error_message ? ` • Error: ${Persimmon.utils.sanitizeHtml(item.error_message)}` : ''}
                                     </div>
                                 </div>
                                 <div class="item-status status-${item.status}">
@@ -1114,26 +1121,34 @@
                     return;
                 }
                 
-                container.innerHTML = pendingItems.map(item => `
-                    <div class="review-item ${item.decision || ''}" id="review-${item.id}">
-                        <div class="review-header">
-                            <div class="review-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
-                            <div class="ai-confidence">${item.confidence}% confidence</div>
+                container.innerHTML = pendingItems.map(item => {
+                    // Apply encoding fixes to all text content before rendering
+                    const title = Persimmon.utils.fixTextEncoding(item.title || '');
+                    const summary = Persimmon.utils.fixTextEncoding(item.summary || '');
+                    const quote = Persimmon.utils.fixTextEncoding(item.quote || '');
+                    const source = Persimmon.utils.fixTextEncoding(item.source || '');
+                    
+                    return `
+                        <div class="review-item ${item.decision || ''}" id="review-${item.id}">
+                            <div class="review-header">
+                                <div class="review-title">${Persimmon.utils.sanitizeHtml(title)}</div>
+                                <div class="ai-confidence">${item.confidence}% confidence</div>
+                            </div>
+                            <div class="review-summary">${Persimmon.utils.sanitizeHtml(summary)}</div>
+                            ${quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(quote)}"</div>` : ''}
+                            <div class="review-meta">
+                                <span>${Persimmon.utils.sanitizeHtml(source)}</span>
+                                <span>${item.category.toUpperCase()}</span>
+                                <span>${item.priority.toUpperCase()} PRIORITY</span>
+                            </div>
+                            <div class="review-actions">
+                                <button class="action-btn approve" onclick="PersimmonProcessor.reviewItem('${item.id}', 'approve')">Approve</button>
+                                <button class="action-btn reject" onclick="PersimmonProcessor.reviewItem('${item.id}', 'reject')">Reject</button>
+                                <button class="action-btn" onclick="PersimmonProcessor.editReviewItem('${item.id}')">Edit</button>
+                            </div>
                         </div>
-                        <div class="review-summary">${Persimmon.utils.sanitizeHtml(item.summary)}</div>
-                        ${item.quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
-                        <div class="review-meta">
-                            <span>${item.source}</span>
-                            <span>${item.category.toUpperCase()}</span>
-                            <span>${item.priority.toUpperCase()} PRIORITY</span>
-                        </div>
-                        <div class="review-actions">
-                            <button class="action-btn approve" onclick="PersimmonProcessor.reviewItem('${item.id}', 'approve')">Approve</button>
-                            <button class="action-btn reject" onclick="PersimmonProcessor.reviewItem('${item.id}', 'reject')">Reject</button>
-                            <button class="action-btn" onclick="PersimmonProcessor.editReviewItem('${item.id}')">Edit</button>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             },
 
             // Review Functions
