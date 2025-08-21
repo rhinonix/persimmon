@@ -815,12 +815,89 @@
             rejectedItems: [],
 
             // Initialize processor
-            init() {
+            async init() {
                 this.setupHeader();
                 this.setupFileUpload();
+                await this.initializePIRSelector();
                 this.renderProcessingQueue();
                 this.renderReviewItems();
                 this.updateReviewStats();
+            },
+
+            // Initialize PIR selector component
+            async initializePIRSelector() {
+                try {
+                    const container = document.getElementById("pir-selector-container");
+                    if (!container) {
+                        console.warn("PIR selector container not found");
+                        return;
+                    }
+
+                    // Initialize PIR selector with options
+                    this.pirSelector = PIRSelector.create("pir-selector-container", {
+                        placeholder: "Select PIRs for processing...",
+                        allowMultiple: true,
+                        showSearch: true,
+                        onSelectionChange: (selectedPIRs) => {
+                            this.selectedPIRs = selectedPIRs;
+                            this.onPIRSelectionChange(selectedPIRs);
+                        },
+                    });
+
+                    // Set default PIRs if none selected
+                    if (!this.selectedPIRs || this.selectedPIRs.length === 0) {
+                        // Get default PIRs from the selector
+                        const defaultPIRs = await this.getDefaultPIRs();
+                        if (defaultPIRs.length > 0) {
+                            this.selectedPIRs = defaultPIRs;
+                            if (this.pirSelector) {
+                                this.pirSelector.setSelectedPIRs(defaultPIRs.map(pir => pir.id));
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error initializing PIR selector:", error);
+                    // Fallback to default PIRs
+                    this.selectedPIRs = [
+                        { id: "ukraine", name: "Ukraine Conflict", color: "#3b82f6" },
+                        { id: "sabotage", name: "Industrial Sabotage", color: "#ef4444" },
+                        { id: "insider", name: "Insider Threats", color: "#f59e0b" },
+                    ];
+                }
+            },
+
+            // Get default PIRs for fallback
+            async getDefaultPIRs() {
+                try {
+                    if (typeof PersimmonDB !== "undefined" && PersimmonDB.getActivePIRs) {
+                        const activePIRs = await PersimmonDB.getActivePIRs();
+                        return activePIRs.slice(0, 3); // Limit to first 3 for default
+                    }
+                } catch (error) {
+                    console.warn("Could not load active PIRs, using fallback:", error);
+                }
+
+                // Fallback PIRs
+                return [
+                    { id: "ukraine", name: "Ukraine Conflict", color: "#3b82f6" },
+                    { id: "sabotage", name: "Industrial Sabotage", color: "#ef4444" },
+                    { id: "insider", name: "Insider Threats", color: "#f59e0b" },
+                ];
+            },
+
+            // Handle PIR selection changes
+            onPIRSelectionChange(selectedPIRs) {
+                console.log("PIR selection changed:", selectedPIRs);
+
+                // Show notification about PIR change
+                if (selectedPIRs.length > 0) {
+                    const pirNames = selectedPIRs.map((pir) => pir.name).join(", ");
+                    Persimmon.notifications.info(`Processing focus updated: ${pirNames}`);
+                } else {
+                    Persimmon.notifications.warning(
+                        "No PIRs selected - processing will use default criteria"
+                    );
+                }
             },
 
             setupHeader() {
