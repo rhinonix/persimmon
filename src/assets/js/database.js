@@ -1099,7 +1099,9 @@ const PersimmonDB = {
 
       if (!data || data.length === 0) {
         console.warn(`[DB] No rows were deleted for feed ID: ${id}`);
-        return false;
+        throw new Error(
+          `Failed to delete RSS feed: No rows were affected. This may be due to insufficient permissions or row-level security policies.`
+        );
       }
 
       console.log(`[DB] Successfully deleted RSS feed: ${existingFeed.name}`);
