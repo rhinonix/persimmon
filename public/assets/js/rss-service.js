@@ -355,7 +355,14 @@ const PersimmonRSS = {
         item.querySelector("[*|encoded]") ||
         item.getElementsByTagName("content:encoded")[0];
       if (contentEncoded) {
-        content = contentEncoded.textContent.trim() || content;
+        const encodedText = contentEncoded.textContent.trim();
+        // Apply encoding fixes to content:encoded text as well
+        content =
+          typeof Persimmon !== "undefined" &&
+          Persimmon.utils &&
+          Persimmon.utils.fixTextEncoding
+            ? Persimmon.utils.fixTextEncoding(encodedText)
+            : encodedText || content;
       }
 
       const feedItem = {
@@ -429,12 +436,28 @@ const PersimmonRSS = {
 
   getTextContent(parent, selector) {
     const element = parent.querySelector(selector);
-    return element ? element.textContent.trim() : "";
+    if (!element) return "";
+
+    const text = element.textContent.trim();
+    // Apply encoding fixes to prevent mojibake characters
+    return typeof Persimmon !== "undefined" &&
+      Persimmon.utils &&
+      Persimmon.utils.fixTextEncoding
+      ? Persimmon.utils.fixTextEncoding(text)
+      : text;
   },
 
   getElementByTagName(parent, tagName) {
     const elements = parent.getElementsByTagName(tagName);
-    return elements.length > 0 ? elements[0].textContent.trim() : "";
+    if (elements.length === 0) return "";
+
+    const text = elements[0].textContent.trim();
+    // Apply encoding fixes to prevent mojibake characters
+    return typeof Persimmon !== "undefined" &&
+      Persimmon.utils &&
+      Persimmon.utils.fixTextEncoding
+      ? Persimmon.utils.fixTextEncoding(text)
+      : text;
   },
 
   // ============================================================================
