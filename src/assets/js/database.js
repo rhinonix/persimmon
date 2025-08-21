@@ -1057,6 +1057,25 @@ const PersimmonDB = {
     }
   },
 
+  async deleteRSSFeed(id) {
+    try {
+      const { error } = await this.supabase
+        .from("rss_feeds")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error deleting RSS feed:", error);
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Database error in deleteRSSFeed:", error);
+      throw error;
+    }
+  },
+
   // ============================================================================
   // DATA SOURCES
   // ============================================================================

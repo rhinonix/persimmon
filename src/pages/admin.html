@@ -365,6 +365,17 @@
             border-radius: 4px;
             border: 1px solid var(--border-medium);
         }
+        
+        .btn-danger {
+            background-color: #dc2626;
+            color: white;
+            border: 1px solid #dc2626;
+        }
+        
+        .btn-danger:hover {
+            background-color: #b91c1c;
+            border-color: #b91c1c;
+        }
     </style>
 </head>
 <body>
@@ -773,6 +784,7 @@
                             <button class="btn" onclick="PersimmonAdmin.toggleRSSFeed('${feed.id}')">
                                 ${feed.active ? 'Deactivate' : 'Activate'}
                             </button>
+                            <button class="btn btn-danger" onclick="PersimmonAdmin.deleteRSSFeed('${feed.id}')">Delete</button>
                         </div>
                     </div>
                 `).join('');
@@ -1128,6 +1140,41 @@
                 } catch (error) {
                     console.error('Error toggling RSS feed:', error);
                     Persimmon.notifications.error(`Failed to toggle ${feed.name}: ${error.message}`);
+                }
+            },
+
+            async deleteRSSFeed(id) {
+                const feed = this.rssFeeds.find(f => f.id === id);
+                if (!feed) {
+                    Persimmon.notifications.error('RSS feed not found');
+                    return;
+                }
+
+                // Show confirmation dialog
+                const confirmed = confirm(`Are you sure you want to delete the RSS feed "${feed.name}"?\n\nThis action cannot be undone and will also delete all associated RSS feed items.`);
+                if (!confirmed) {
+                    return;
+                }
+
+                try {
+                    if (PersimmonDB && PersimmonDB.isAvailable()) {
+                        // Delete from database
+                        await PersimmonDB.deleteRSSFeed(id);
+                        Persimmon.notifications.success(`RSS feed "${feed.name}" deleted successfully`);
+                    } else {
+                        // Fallback - remove from local array
+                        const index = this.rssFeeds.findIndex(f => f.id === id);
+                        if (index !== -1) {
+                            this.rssFeeds.splice(index, 1);
+                        }
+                        Persimmon.notifications.success(`RSS feed "${feed.name}" deleted (database unavailable)`);
+                    }
+                    
+                    // Reload feeds to show updated list
+                    await this.loadRSSFeeds();
+                } catch (error) {
+                    console.error('Error deleting RSS feed:', error);
+                    Persimmon.notifications.error(`Failed to delete RSS feed: ${error.message}`);
                 }
             }
         };
