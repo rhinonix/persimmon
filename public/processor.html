@@ -1573,10 +1573,15 @@
                     let processedCount = 0;
                     let errorCount = 0;
                     
+                    // Keep track of processed items to hide them from queue display
+                    this.processedQueueItems = this.processedQueueItems || new Set();
+                    
                     // Process each item
                     for (const queueItem of queueItems) {
                         try {
                             await this.processQueueItemFromDB(queueItem);
+                            // Mark item as processed locally
+                            this.processedQueueItems.add(queueItem.id);
                             processedCount++;
                         } catch (error) {
                             console.error(`Error processing queue item ${queueItem.id}:`, error);
@@ -1620,12 +1625,13 @@
             async processQueueItemFromDB(queueItem) {
                 let reviewItem;
                 
-                // First, mark the item as processing in the database
                 try {
+                    // Update status to processing
                     await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'processing');
-                    console.log(`Marked queue item ${queueItem.id} as processing`);
+                    console.log(`Processing queue item ${queueItem.id}`);
                 } catch (error) {
-                    console.warn('Failed to update queue status to processing:', error);
+                    console.warn(`Could not update queue item ${queueItem.id} to processing status:`, error);
+                    // Continue processing even if status update fails
                 }
                 
                 // Check if this is an RSS feed item or intelligence item
@@ -1634,21 +1640,21 @@
                     const rssItem = queueItem.rss_feed_items;
                     const feedName = rssItem.rss_feeds?.name || 'RSS Feed';
                     
-                    // Clean HTML content from RSS items
+                    // Clean HTML content from RSS items and apply encoding fixes
                     const cleanDescription = Persimmon.utils.stripHtml(rssItem.description || '');
                     const cleanContent = Persimmon.utils.stripHtml(rssItem.content || '');
                     
                     reviewItem = {
                         id: queueItem.id, // Use queue item ID
-                        title: rssItem.title || 'Untitled RSS Item',
-                        summary: cleanDescription || cleanContent?.substring(0, 200) + '...' || 'No summary available',
-                        content: cleanContent || cleanDescription || 'Content not available',
+                        title: Persimmon.utils.fixTextEncoding(rssItem.title || 'Untitled RSS Item'),
+                        summary: Persimmon.utils.fixTextEncoding(cleanDescription || cleanContent?.substring(0, 200) + '...' || 'No summary available'),
+                        content: Persimmon.utils.fixTextEncoding(cleanContent || cleanDescription || 'Content not available'),
                         category: 'ukraine', // Default category - could be improved with AI categorization
                         priority: 'medium',
-                        source: feedName,
+                        source: Persimmon.utils.fixTextEncoding(feedName),
                         confidence: 85,
                         reasoning: `Processed from RSS feed: ${feedName}`,
-                        quote: cleanDescription?.substring(0, 150) + '...' || '',
+                        quote: Persimmon.utils.fixTextEncoding(cleanDescription?.substring(0, 150) + '...' || ''),
                         originalData: {
                             queue_item_id: queueItem.id,
                             rss_feed_item_id: rssItem.id,
@@ -1664,15 +1670,15 @@
                     
                     reviewItem = {
                         id: intelligenceItem.id || queueItem.id,
-                        title: intelligenceItem.title || 'Intelligence Item',
-                        summary: intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...' || 'No summary available',
-                        content: intelligenceItem.content || 'Content not available',
+                        title: Persimmon.utils.fixTextEncoding(intelligenceItem.title || 'Intelligence Item'),
+                        summary: Persimmon.utils.fixTextEncoding(intelligenceItem.summary || intelligenceItem.content?.substring(0, 200) + '...' || 'No summary available'),
+                        content: Persimmon.utils.fixTextEncoding(intelligenceItem.content || 'Content not available'),
                         category: intelligenceItem.category || 'none',
                         priority: intelligenceItem.priority || 'medium',
-                        source: intelligenceItem.source_name || 'Unknown Source',
+                        source: Persimmon.utils.fixTextEncoding(intelligenceItem.source_name || 'Unknown Source'),
                         confidence: 85,
                         reasoning: 'Processed intelligence item',
-                        quote: intelligenceItem.content?.substring(0, 150) + '...' || '',
+                        quote: Persimmon.utils.fixTextEncoding(intelligenceItem.content?.substring(0, 150) + '...' || ''),
                         originalData: {
                             intelligence_item_id: intelligenceItem.id,
                             queue_item_id: queueItem.id
@@ -1704,18 +1710,13 @@
                 // Add to review items
                 this.reviewItems.push(reviewItem);
                 
-                // Update queue item status in database (mark as completed)
                 try {
-                    const result = await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
-                    console.log(`Successfully marked queue item ${queueItem.id} as completed:`, result);
+                    // Update status to completed
+                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    console.log(`Successfully processed queue item ${queueItem.id} and updated status to completed`);
                 } catch (error) {
-                    console.error('Failed to update queue status to completed:', error);
-                    // Try to mark as error instead
-                    try {
-                        await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'error', error.message);
-                    } catch (errorUpdateError) {
-                        console.error('Failed to mark queue item as error:', errorUpdateError);
-                    }
+                    console.warn(`Could not update queue item ${queueItem.id} to completed status:`, error);
+                    // Continue even if status update fails - the item was still processed
                 }
                 
                 return reviewItem;
