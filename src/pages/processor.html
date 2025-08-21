@@ -833,36 +833,42 @@
                         return;
                     }
 
+                    // Load available PIRs first
+                    this.availablePIRs = await this.getDefaultPIRs();
+                    
                     // Initialize PIR selector with options
                     this.pirSelector = PIRSelector.create("pir-selector-container", {
-                        placeholder: "Select PIRs for processing...",
+                        placeholder: "Select PIRs for processing (All PIRs selected by default)...",
                         allowMultiple: true,
                         showSearch: true,
-                        onSelectionChange: (selectedPIRs) => {
-                            this.selectedPIRs = selectedPIRs;
-                            this.onPIRSelectionChange(selectedPIRs);
+                        onSelectionChange: (selectedPIRIds, selectedPIRObjects) => {
+                            this.handlePIRSelectionChange(selectedPIRIds, selectedPIRObjects);
                         },
                     });
 
-                    // Set default PIRs if none selected
-                    if (!this.selectedPIRs || this.selectedPIRs.length === 0) {
-                        // Get default PIRs from the selector
-                        const defaultPIRs = await this.getDefaultPIRs();
-                        if (defaultPIRs.length > 0) {
-                            this.selectedPIRs = defaultPIRs;
-                            if (this.pirSelector) {
-                                this.pirSelector.setSelectedPIRs(defaultPIRs.map(pir => pir.id));
-                            }
+                    // Default to ALL PIRs selected
+                    if (this.availablePIRs.length > 0) {
+                        this.selectedPIRs = [...this.availablePIRs]; // Select all PIRs by default
+                        this.allPIRsSelected = true;
+                        
+                        if (this.pirSelector) {
+                            this.pirSelector.setSelectedPIRs(this.availablePIRs.map(pir => pir.id));
                         }
+                        
+                        // Update the processing context display
+                        this.updateProcessingContextDisplay();
                     }
                 } catch (error) {
                     console.error("Error initializing PIR selector:", error);
                     // Fallback to default PIRs
-                    this.selectedPIRs = [
+                    this.availablePIRs = [
                         { id: "ukraine", name: "Ukraine Conflict", color: "#3b82f6" },
                         { id: "sabotage", name: "Industrial Sabotage", color: "#ef4444" },
                         { id: "insider", name: "Insider Threats", color: "#f59e0b" },
                     ];
+                    this.selectedPIRs = [...this.availablePIRs];
+                    this.allPIRsSelected = true;
+                    this.updateProcessingContextDisplay();
                 }
             },
 
@@ -885,18 +891,80 @@
                 ];
             },
 
-            // Handle PIR selection changes
-            onPIRSelectionChange(selectedPIRs) {
-                console.log("PIR selection changed:", selectedPIRs);
-
+            // Handle PIR selection changes with enhanced logic
+            handlePIRSelectionChange(selectedPIRIds, selectedPIRObjects) {
+                console.log("PIR selection changed:", selectedPIRIds, selectedPIRObjects);
+                
+                // Update internal state
+                this.selectedPIRs = selectedPIRObjects || [];
+                this.allPIRsSelected = (this.selectedPIRs.length === this.availablePIRs.length);
+                
+                // Update processing context display
+                this.updateProcessingContextDisplay();
+                
                 // Show notification about PIR change
-                if (selectedPIRs.length > 0) {
-                    const pirNames = selectedPIRs.map((pir) => pir.name).join(", ");
-                    Persimmon.notifications.info(`Processing focus updated: ${pirNames}`);
+                if (this.selectedPIRs.length === 0) {
+                    Persimmon.notifications.warning("No PIRs selected - processing will use default criteria");
+                } else if (this.allPIRsSelected) {
+                    Persimmon.notifications.success(`Processing against ALL PIRs (${this.selectedPIRs.length} total)`);
                 } else {
-                    Persimmon.notifications.warning(
-                        "No PIRs selected - processing will use default criteria"
-                    );
+                    const pirNames = this.selectedPIRs.map((pir) => pir.name).join(", ");
+                    Persimmon.notifications.info(`Processing focus updated: ${pirNames}`);
+                }
+            },
+
+            // Update the processing context display with visual feedback
+            updateProcessingContextDisplay() {
+                const contextText = document.querySelector('.processing-context-text');
+                if (!contextText) {
+                    // Create context display if it doesn't exist
+                    const contextContainer = document.querySelector('#processing-page .section > div');
+                    if (contextContainer) {
+                        const existingText = contextContainer.querySelector('div[style*="font-size: 12px"]');
+                        if (existingText) {
+                            existingText.innerHTML = `
+                                <div class="processing-context-text" style="font-size: 12px; color: #6e6e73; margin-bottom: 8px;">
+                                    ${this.getProcessingContextText()}
+                                </div>
+                            `;
+                        }
+                    }
+                } else {
+                    contextText.innerHTML = this.getProcessingContextText();
+                }
+            },
+
+            // Get the processing context text based on current PIR selection
+            getProcessingContextText() {
+                if (!this.selectedPIRs || this.selectedPIRs.length === 0) {
+                    return 'AI is analyzing raw data against <strong>default criteria</strong> (no PIRs selected):';
+                } else if (this.allPIRsSelected) {
+                    return `AI is analyzing raw data against <strong>ALL PIRs</strong> (${this.selectedPIRs.length} total):`;
+                } else {
+                    const pirNames = this.selectedPIRs.map(pir => pir.name).join(', ');
+                    return `AI is analyzing raw data against <strong>selected PIRs</strong>: ${pirNames}`;
+                }
+            },
+
+            // Add "Select All PIRs" functionality
+            selectAllPIRs() {
+                if (this.pirSelector && this.availablePIRs) {
+                    this.pirSelector.setSelectedPIRs(this.availablePIRs.map(pir => pir.id));
+                    this.selectedPIRs = [...this.availablePIRs];
+                    this.allPIRsSelected = true;
+                    this.updateProcessingContextDisplay();
+                    Persimmon.notifications.success(`Selected all ${this.availablePIRs.length} PIRs for processing`);
+                }
+            },
+
+            // Clear all PIR selections
+            clearAllPIRs() {
+                if (this.pirSelector) {
+                    this.pirSelector.setSelectedPIRs([]);
+                    this.selectedPIRs = [];
+                    this.allPIRsSelected = false;
+                    this.updateProcessingContextDisplay();
+                    Persimmon.notifications.warning("Cleared all PIR selections - processing will use default criteria");
                 }
             },
 
