@@ -1059,16 +1059,50 @@ const PersimmonDB = {
 
   async deleteRSSFeed(id) {
     try {
-      const { error } = await this.supabase
+      console.log(`[DB] Attempting to delete RSS feed with ID: ${id}`);
+
+      // First, check if the feed exists
+      const { data: existingFeed, error: checkError } = await this.supabase
+        .from("rss_feeds")
+        .select("id, name")
+        .eq("id", id)
+        .single();
+
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("[DB] Error checking if feed exists:", checkError);
+        throw checkError;
+      }
+
+      if (!existingFeed) {
+        console.log(`[DB] Feed with ID ${id} not found in database`);
+        return true; // Consider it deleted if it doesn't exist
+      }
+
+      console.log(
+        `[DB] Found feed to delete: ${existingFeed.name} (${existingFeed.id})`
+      );
+
+      // Perform the deletion
+      const { data, error } = await this.supabase
         .from("rss_feeds")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select(); // Return deleted rows to confirm
 
       if (error) {
-        console.error("Error deleting RSS feed:", error);
+        console.error("[DB] Error deleting RSS feed:", error);
         throw error;
       }
 
+      console.log(`[DB] Deletion result:`, data);
+      console.log(`[DB] Number of rows deleted: ${data ? data.length : 0}`);
+
+      if (!data || data.length === 0) {
+        console.warn(`[DB] No rows were deleted for feed ID: ${id}`);
+        return false;
+      }
+
+      console.log(`[DB] Successfully deleted RSS feed: ${existingFeed.name}`);
       return true;
     } catch (error) {
       console.error("Database error in deleteRSSFeed:", error);
