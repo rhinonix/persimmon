@@ -1087,108 +1087,6 @@
                 this.renderReviewItems();
             },
 
-            // Helper function to fix text encoding issues
-            fixTextEncoding(str) {
-                if (!str) return '';
-                
-                // Fix common UTF-8 encoding issues (mojibake)
-                let fixedText = str
-                    // Fix common apostrophe/quote issues
-                    .replace(/â€™/g, "'")  // Right single quotation mark
-                    .replace(/â€œ/g, '"')  // Left double quotation mark
-                    .replace(/â€/g, '"')   // Right double quotation mark
-                    .replace(/â€˜/g, "'")  // Left single quotation mark
-                    .replace(/â€"/g, '—')  // Em dash
-                    .replace(/â€"/g, '–')  // En dash
-                    .replace(/â€¦/g, '...')  // Horizontal ellipsis
-                    // Fix other common encoding issues
-                    .replace(/Ã¡/g, 'á')
-                    .replace(/Ã©/g, 'é')
-                    .replace(/Ã­/g, 'í')
-                    .replace(/Ã³/g, 'ó')
-                    .replace(/Ãº/g, 'ú')
-                    .replace(/Ã±/g, 'ñ')
-                    .replace(/Ã¼/g, 'ü')
-                    .replace(/Ã¶/g, 'ö')
-                    .replace(/Ã¤/g, 'ä')
-                    .replace(/Ã§/g, 'ç')
-                    // Fix common double-encoded characters
-                    .replace(/â/g, '')  // Remove stray â characters that often appear before quotes
-                    // Fix specific patterns from your example
-                    .replace(/Fleetâs/g, "Fleet's")
-                    .replace(/Ukraineâs/g, "Ukraine's")
-                    .replace(/â\s/g, ' ') // Remove â followed by space
-                    // Fix more specific encoding patterns
-                    .replace(/â€™s/g, "'s")  // Possessive apostrophe
-                    .replace(/â€œ([^â€]+)â€/g, '"$1"')  // Quoted text
-                    .replace(/â€˜([^â€]+)â€™/g, "'$1'")  // Single quoted text
-                    // Clean up multiple spaces
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                return fixedText;
-            },
-
-            // Helper function for HTML sanitization
-            sanitizeHtml(str) {
-                if (!str) return '';
-                
-                // First fix encoding issues
-                str = this.fixTextEncoding(str);
-                
-                // Use Persimmon utils if available, otherwise simple fallback
-                if (Persimmon && Persimmon.utils && Persimmon.utils.sanitizeHtml) {
-                    return Persimmon.utils.sanitizeHtml(str);
-                }
-                // Simple fallback sanitization
-                return str.replace(/[<>&"']/g, function(match) {
-                    const escapeMap = {
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '&': '&amp;',
-                        '"': '&quot;',
-                        "'": '&#x27;'
-                    };
-                    return escapeMap[match];
-                });
-            },
-
-            // Helper function to strip HTML tags and clean text content
-            stripHtml(str) {
-                if (!str) return '';
-                
-                // Create a temporary div to parse HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = str;
-                
-                // Get text content (this strips all HTML tags)
-                let cleanText = tempDiv.textContent || tempDiv.innerText || '';
-                
-                // Clean up common HTML entities
-                cleanText = cleanText
-                    .replace(/&nbsp;/g, ' ')
-                    .replace(/&amp;/g, '&')
-                    .replace(/&lt;/g, '<')
-                    .replace(/&gt;/g, '>')
-                    .replace(/&quot;/g, '"')
-                    .replace(/&#8230;/g, '...')
-                    .replace(/&#8217;/g, "'")
-                    .replace(/&#8216;/g, "'")
-                    .replace(/&#8220;/g, '"')
-                    .replace(/&#8221;/g, '"')
-                    .replace(/&#8211;/g, '-')
-                    .replace(/&#8212;/g, '—');
-                
-                // Use the dedicated encoding fix function
-                cleanText = this.fixTextEncoding(cleanText);
-                
-                // Clean up extra whitespace
-                cleanText = cleanText
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                
-                return cleanText;
-            },
 
             renderReviewItems() {
                 const container = document.getElementById('review-items');
@@ -1219,11 +1117,11 @@
                 container.innerHTML = pendingItems.map(item => `
                     <div class="review-item ${item.decision || ''}" id="review-${item.id}">
                         <div class="review-header">
-                            <div class="review-title">${this.sanitizeHtml(item.title)}</div>
+                            <div class="review-title">${Persimmon.utils.sanitizeHtml(item.title)}</div>
                             <div class="ai-confidence">${item.confidence}% confidence</div>
                         </div>
-                        <div class="review-summary">${this.sanitizeHtml(item.summary)}</div>
-                        ${item.quote ? `<div class="item-quote">"${this.sanitizeHtml(item.quote)}"</div>` : ''}
+                        <div class="review-summary">${Persimmon.utils.sanitizeHtml(item.summary)}</div>
+                        ${item.quote ? `<div class="item-quote">"${Persimmon.utils.sanitizeHtml(item.quote)}"</div>` : ''}
                         <div class="review-meta">
                             <span>${item.source}</span>
                             <span>${item.category.toUpperCase()}</span>
@@ -1331,12 +1229,12 @@
                             <div class="edit-modal-body">
                                 <div class="form-group">
                                     <label for="edit-title">Title:</label>
-                                    <input type="text" id="edit-title" class="form-input" value="${this.sanitizeHtml(item.title)}">
+                                    <input type="text" id="edit-title" class="form-input" value="${Persimmon.utils.sanitizeHtml(item.title)}">
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="edit-summary">Summary:</label>
-                                    <textarea id="edit-summary" class="form-textarea" rows="4">${this.sanitizeHtml(item.summary)}</textarea>
+                                    <textarea id="edit-summary" class="form-textarea" rows="4">${Persimmon.utils.sanitizeHtml(item.summary)}</textarea>
                                 </div>
                                 
                                 <div class="form-row">
@@ -1362,7 +1260,7 @@
                                 
                                 <div class="form-group">
                                     <label for="edit-quote">Key Quote (optional):</label>
-                                    <textarea id="edit-quote" class="form-textarea" rows="2">${this.sanitizeHtml(item.quote || '')}</textarea>
+                                    <textarea id="edit-quote" class="form-textarea" rows="2">${Persimmon.utils.sanitizeHtml(item.quote || '')}</textarea>
                                 </div>
                                 
                                 <div class="form-group">
@@ -1722,8 +1620,8 @@
                     const feedName = rssItem.rss_feeds?.name || 'RSS Feed';
                     
                     // Clean HTML content from RSS items
-                    const cleanDescription = this.stripHtml(rssItem.description || '');
-                    const cleanContent = this.stripHtml(rssItem.content || '');
+                    const cleanDescription = Persimmon.utils.stripHtml(rssItem.description || '');
+                    const cleanContent = Persimmon.utils.stripHtml(rssItem.content || '');
                     
                     reviewItem = {
                         id: queueItem.id, // Use queue item ID

@@ -9,9 +9,92 @@ const Persimmon = {
     generateId: () => Date.now() + Math.random(),
 
     sanitizeHtml: (str) => {
+      if (!str) return "";
+
+      // First fix encoding issues
+      str = Persimmon.utils.fixTextEncoding(str);
+
+      // Then sanitize HTML
       const div = document.createElement("div");
       div.textContent = str;
       return div.innerHTML;
+    },
+
+    // Fix common UTF-8 encoding issues (mojibake)
+    fixTextEncoding: (str) => {
+      if (!str) return "";
+
+      let fixedText = str
+        // Fix common apostrophe/quote issues
+        .replace(/â€™/g, "'") // Right single quotation mark
+        .replace(/â€œ/g, '"') // Left double quotation mark
+        .replace(/â€/g, '"') // Right double quotation mark
+        .replace(/â€˜/g, "'") // Left single quotation mark
+        .replace(/â€"/g, "—") // Em dash
+        .replace(/â€"/g, "–") // En dash
+        .replace(/â€¦/g, "...") // Horizontal ellipsis
+        // Fix other common encoding issues
+        .replace(/Ã¡/g, "á")
+        .replace(/Ã©/g, "é")
+        .replace(/Ã­/g, "í")
+        .replace(/Ã³/g, "ó")
+        .replace(/Ãº/g, "ú")
+        .replace(/Ã±/g, "ñ")
+        .replace(/Ã¼/g, "ü")
+        .replace(/Ã¶/g, "ö")
+        .replace(/Ã¤/g, "ä")
+        .replace(/Ã§/g, "ç")
+        // Fix common double-encoded characters
+        .replace(/â/g, "") // Remove stray â characters that often appear before quotes
+        // Fix specific patterns from user's example
+        .replace(/Fleetâs/g, "Fleet's")
+        .replace(/Ukraineâs/g, "Ukraine's")
+        .replace(/countrys/g, "country's") // Fix the specific issue mentioned
+        .replace(/â\s/g, " ") // Remove â followed by space
+        // Fix more specific encoding patterns
+        .replace(/â€™s/g, "'s") // Possessive apostrophe
+        .replace(/â€œ([^â€]+)â€/g, '"$1"') // Quoted text
+        .replace(/â€˜([^â€]+)â€™/g, "'$1'") // Single quoted text
+        // Clean up multiple spaces
+        .replace(/\s+/g, " ")
+        .trim();
+
+      return fixedText;
+    },
+
+    // Helper function to strip HTML tags and clean text content
+    stripHtml: (str) => {
+      if (!str) return "";
+
+      // Create a temporary div to parse HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = str;
+
+      // Get text content (this strips all HTML tags)
+      let cleanText = tempDiv.textContent || tempDiv.innerText || "";
+
+      // Clean up common HTML entities
+      cleanText = cleanText
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#8230;/g, "...")
+        .replace(/&#8217;/g, "'")
+        .replace(/&#8216;/g, "'")
+        .replace(/&#8220;/g, '"')
+        .replace(/&#8221;/g, '"')
+        .replace(/&#8211;/g, "-")
+        .replace(/&#8212;/g, "—");
+
+      // Use the dedicated encoding fix function
+      cleanText = Persimmon.utils.fixTextEncoding(cleanText);
+
+      // Clean up extra whitespace
+      cleanText = cleanText.replace(/\s+/g, " ").trim();
+
+      return cleanText;
     },
 
     formatDate: (date) => new Date(date).toLocaleDateString(),

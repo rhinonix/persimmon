@@ -1327,6 +1327,34 @@ const PersimmonDB = {
     }
   },
 
+  async deleteProcessingQueueItem(queueItemId) {
+    try {
+      console.log(`Deleting processing queue item ${queueItemId}`);
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .delete()
+        .eq("id", queueItemId)
+        .select();
+
+      if (error) {
+        console.error("Error deleting processing queue item:", error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.warn(`No processing queue item found with ID: ${queueItemId}`);
+        return false;
+      }
+
+      console.log(`Successfully deleted processing queue item ${queueItemId}`);
+      return true;
+    } catch (error) {
+      console.error("Database error in deleteProcessingQueueItem:", error);
+      throw error;
+    }
+  },
+
   // ============================================================================
   // REAL-TIME SUBSCRIPTIONS
   // ============================================================================
