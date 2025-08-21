@@ -601,10 +601,11 @@
             editingFeedId: null,
 
             // Initialize admin interface
-            init() {
+            async init() {
                 this.setupHeader();
-                this.loadPIRs();
-                this.loadRSSFeeds();
+                // Load PIRs first, then RSS feeds to ensure PIR data is available for rendering
+                await this.loadPIRs();
+                await this.loadRSSFeeds();
                 this.updateSystemInfo();
                 this.checkDatabaseStatus();
             },
@@ -623,6 +624,11 @@
                 // Show selected page
                 document.getElementById(pageId + '-page').classList.add('active');
                 event.target.classList.add('active');
+                
+                // Re-render RSS feeds when switching to RSS tab to ensure PIR data is available
+                if (pageId === 'rss' && this.rssFeeds.length > 0) {
+                    this.renderRSSFeeds();
+                }
             },
 
             // PIR Management
