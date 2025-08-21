@@ -1157,21 +1157,32 @@
                 }
 
                 try {
+                    console.log(`Attempting to delete RSS feed: ${feed.name} (ID: ${id})`);
+                    
                     if (PersimmonDB && PersimmonDB.isAvailable()) {
                         // Delete from database
+                        console.log('Deleting from database...');
                         await PersimmonDB.deleteRSSFeed(id);
+                        console.log('Database deletion successful');
                         Persimmon.notifications.success(`RSS feed "${feed.name}" deleted successfully`);
                     } else {
                         // Fallback - remove from local array
+                        console.log('Database unavailable, using fallback deletion...');
                         const index = this.rssFeeds.findIndex(f => f.id === id);
                         if (index !== -1) {
                             this.rssFeeds.splice(index, 1);
+                            console.log(`Removed feed from local array at index ${index}`);
                         }
                         Persimmon.notifications.success(`RSS feed "${feed.name}" deleted (database unavailable)`);
                     }
                     
-                    // Reload feeds to show updated list
+                    // Force immediate UI update by re-rendering
+                    console.log('Refreshing RSS feeds display...');
+                    this.renderRSSFeeds();
+                    
+                    // Also reload feeds to ensure consistency
                     await this.loadRSSFeeds();
+                    console.log('RSS feed deletion completed');
                 } catch (error) {
                     console.error('Error deleting RSS feed:', error);
                     Persimmon.notifications.error(`Failed to delete RSS feed: ${error.message}`);
