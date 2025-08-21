@@ -571,9 +571,20 @@ const PersimmonDB = {
 
   async updatePIR(id, updates) {
     try {
+      const user = await PersimmonAuth.getCurrentUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // Add updated_by field to track who made the change
+      const updateData = {
+        ...updates,
+        updated_by: user.id,
+      };
+
       const { data, error } = await this.supabase
         .from("pirs")
-        .update(updates)
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
