@@ -657,6 +657,8 @@
                     <div style="display: flex; gap: 8px;">
                         <button class="btn btn-primary" onclick="PersimmonProcessor.processAllQueueItems()">Process All Items</button>
                         <button class="btn btn-secondary" onclick="PersimmonProcessor.pauseProcessing()">Pause Processing</button>
+                        <button class="btn" onclick="PersimmonProcessor.refreshQueue()">Refresh Queue</button>
+                        <button class="btn" onclick="PersimmonProcessor.clearCompleted()">Clear Completed</button>
                     </div>
                 </div>
                 
@@ -1705,6 +1707,14 @@
             async processQueueItemFromDB(queueItem) {
                 let reviewItem;
                 
+                // First, mark the item as processing in the database
+                try {
+                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'processing');
+                    console.log(`Marked queue item ${queueItem.id} as processing`);
+                } catch (error) {
+                    console.warn('Failed to update queue status to processing:', error);
+                }
+                
                 // Check if this is an RSS feed item or intelligence item
                 if (queueItem.rss_feed_items) {
                     // RSS feed item - use RSS data
@@ -1783,9 +1793,16 @@
                 
                 // Update queue item status in database (mark as completed)
                 try {
-                    await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    const result = await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'completed');
+                    console.log(`Successfully marked queue item ${queueItem.id} as completed:`, result);
                 } catch (error) {
-                    console.warn('Failed to update queue status:', error);
+                    console.error('Failed to update queue status to completed:', error);
+                    // Try to mark as error instead
+                    try {
+                        await PersimmonDB.updateProcessingQueueStatus(queueItem.id, 'error', error.message);
+                    } catch (errorUpdateError) {
+                        console.error('Failed to mark queue item as error:', errorUpdateError);
+                    }
                 }
                 
                 return reviewItem;
@@ -1803,6 +1820,74 @@
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-secondary');
                     Persimmon.notifications.info('Processing resumed');
+                }
+            },
+
+            // Refresh the processing queue display
+            async refreshQueue() {
+                const btn = event.target;
+                Persimmon.ui.setButtonLoading(btn, true, 'Refreshing...');
+                
+                try {
+                    await this.renderProcessingQueue();
+                    Persimmon.notifications.success('Processing queue refreshed');
+                } catch (error) {
+                    console.error('Error refreshing queue:', error);
+                    Persimmon.notifications.error(`Failed to refresh queue: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
+                }
+            },
+
+            // Clear completed items from the processing queue
+            async clearCompleted() {
+                const btn = event.target;
+                Persimmon.ui.setButtonLoading(btn, true, 'Clearing...');
+                
+                try {
+                    // Get completed queue items
+                    const completedItems = await PersimmonDB.getProcessingQueue('completed');
+                    
+                    if (completedItems.length === 0) {
+                        Persimmon.notifications.info('No completed items to clear');
+                        return;
+                    }
+                    
+                    // Confirm with user
+                    if (!confirm(`Clear ${completedItems.length} completed items from the queue?`)) {
+                        return;
+                    }
+                    
+                    let clearedCount = 0;
+                    let errorCount = 0;
+                    
+                    // Delete each completed item
+                    for (const item of completedItems) {
+                        try {
+                            await PersimmonDB.deleteProcessingQueueItem(item.id);
+                            clearedCount++;
+                        } catch (error) {
+                            console.error(`Error deleting queue item ${item.id}:`, error);
+                            errorCount++;
+                        }
+                    }
+                    
+                    // Refresh the queue display
+                    await this.renderProcessingQueue();
+                    
+                    if (clearedCount > 0) {
+                        Persimmon.notifications.success(`Cleared ${clearedCount} completed items from queue`);
+                    }
+                    
+                    if (errorCount > 0) {
+                        Persimmon.notifications.warning(`${errorCount} items failed to clear`);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error clearing completed items:', error);
+                    Persimmon.notifications.error(`Failed to clear completed items: ${error.message}`);
+                } finally {
+                    Persimmon.ui.setButtonLoading(btn, false);
                 }
             }
         };
