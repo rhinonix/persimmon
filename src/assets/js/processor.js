@@ -17,9 +17,141 @@ const PersimmonProcessor = {
     this.setupHeader();
     this.setupFileUpload();
     await this.initializePIRSelector();
+    await this.loadReviewItemsFromDatabase(); // Load persisted review items
     this.renderProcessingQueue();
     this.renderReviewItems();
     this.updateReviewStats();
+  },
+
+  // Load review items from database on page load (session persistence)
+  async loadReviewItemsFromDatabase() {
+    try {
+      console.log("Loading review items from database...");
+      const reviewItems = await PersimmonDB.getReviewItems();
+
+      // Convert database items to review item format
+      this.reviewItems = reviewItems.map((queueItem) => {
+        let reviewItem;
+
+        if (queueItem.rss_feed_items) {
+          // RSS feed item
+          const rssItem = queueItem.rss_feed_items;
+          const feedName = rssItem.rss_feeds?.name || "RSS Feed";
+
+          const cleanDescription = Persimmon.utils.stripHtml(
+            rssItem.description || ""
+          );
+          const cleanContent = Persimmon.utils.stripHtml(rssItem.content || "");
+
+          reviewItem = {
+            id: queueItem.id,
+            title: Persimmon.utils.fixTextEncoding(
+              rssItem.title || "Untitled RSS Item"
+            ),
+            summary: Persimmon.utils.fixTextEncoding(
+              cleanDescription ||
+                cleanContent?.substring(0, 200) + "..." ||
+                "No summary available"
+            ),
+            content: Persimmon.utils.fixTextEncoding(
+              cleanContent || cleanDescription || "Content not available"
+            ),
+            category: queueItem.review_data?.category || "ukraine",
+            priority: queueItem.review_data?.priority || "medium",
+            source: Persimmon.utils.fixTextEncoding(feedName),
+            confidence: queueItem.review_data?.confidence || 85,
+            reasoning:
+              queueItem.review_data?.reasoning ||
+              `Processed from RSS feed: ${feedName}`,
+            quote: Persimmon.utils.fixTextEncoding(
+              cleanDescription?.substring(0, 150) + "..." || ""
+            ),
+            originalData: {
+              queue_item_id: queueItem.id,
+              rss_feed_item_id: rssItem.id,
+              rss_feed_name: feedName,
+              original_url: rssItem.link,
+            },
+            reviewed: false,
+            approved: !!queueItem.approved_at,
+            timestamp: queueItem.created_at,
+          };
+        } else if (queueItem.intelligence_items) {
+          // Traditional intelligence item
+          const intelligenceItem = queueItem.intelligence_items;
+
+          reviewItem = {
+            id: queueItem.id,
+            title: Persimmon.utils.fixTextEncoding(
+              intelligenceItem.title || "Intelligence Item"
+            ),
+            summary: Persimmon.utils.fixTextEncoding(
+              intelligenceItem.summary ||
+                intelligenceItem.content?.substring(0, 200) + "..." ||
+                "No summary available"
+            ),
+            content: Persimmon.utils.fixTextEncoding(
+              intelligenceItem.content || "Content not available"
+            ),
+            category: intelligenceItem.category || "none",
+            priority: intelligenceItem.priority || "medium",
+            source: Persimmon.utils.fixTextEncoding(
+              intelligenceItem.source_name || "Unknown Source"
+            ),
+            confidence: intelligenceItem.confidence || 85,
+            reasoning:
+              intelligenceItem.ai_reasoning || "Processed intelligence item",
+            quote: Persimmon.utils.fixTextEncoding(
+              intelligenceItem.quote ||
+                intelligenceItem.content?.substring(0, 150) + "..." ||
+                ""
+            ),
+            originalData: {
+              intelligence_item_id: intelligenceItem.id,
+              queue_item_id: queueItem.id,
+            },
+            reviewed: false,
+            approved: !!queueItem.approved_at,
+            timestamp: queueItem.created_at,
+          };
+        } else {
+          // Fallback
+          reviewItem = {
+            id: queueItem.id,
+            title: "Unknown Item",
+            summary: "Item loaded from database without complete data",
+            content: "Content not available",
+            category: "none",
+            priority: "medium",
+            source: "Unknown Source",
+            confidence: 50,
+            reasoning: "Loaded from database with incomplete data",
+            quote: "",
+            originalData: {
+              queue_item_id: queueItem.id,
+            },
+            reviewed: false,
+            approved: !!queueItem.approved_at,
+            timestamp: queueItem.created_at,
+          };
+        }
+
+        return reviewItem;
+      });
+
+      // Separate approved items
+      this.approvedItems = this.reviewItems.filter((item) => item.approved);
+      this.reviewItems = this.reviewItems.filter((item) => !item.approved);
+
+      console.log(
+        `Loaded ${this.reviewItems.length} review items and ${this.approvedItems.length} approved items from database`
+      );
+    } catch (error) {
+      console.error("Error loading review items from database:", error);
+      // Continue with empty arrays if database fails
+      this.reviewItems = [];
+      this.approvedItems = [];
+    }
   },
 
   // Initialize PIR selector component
@@ -685,40 +817,70 @@ const PersimmonProcessor = {
   },
 
   // Review Functions
-  reviewItem(itemId, decision) {
+  async reviewItem(itemId, decision) {
     console.log("reviewItem called:", itemId, decision);
 
     const item = this.reviewItems.find((i) => i.id === itemId);
     console.log("Found item:", item);
 
     if (item) {
-      item.reviewed = true;
-      item.decision = decision;
-
-      if (decision === "approve") {
-        this.approvedItems.push(item);
-        if (Persimmon && Persimmon.notifications) {
-          Persimmon.notifications.success("Item approved");
+      try {
+        // Update database first
+        if (decision === "approve") {
+          await PersimmonDB.approveReviewItem(
+            item.originalData?.queue_item_id || itemId,
+            `Approved by analyst`
+          );
         } else {
-          alert("Item approved");
+          await PersimmonDB.rejectReviewItem(
+            item.originalData?.queue_item_id || itemId,
+            `Rejected by analyst`
+          );
         }
-      } else {
-        this.rejectedItems.push(item);
-        if (Persimmon && Persimmon.notifications) {
-          Persimmon.notifications.info("Item rejected");
+
+        // Update local state
+        item.reviewed = true;
+        item.decision = decision;
+        item.approved = decision === "approve";
+
+        if (decision === "approve") {
+          this.approvedItems.push(item);
+          if (Persimmon && Persimmon.notifications) {
+            Persimmon.notifications.success(
+              "Item approved and saved to database"
+            );
+          } else {
+            alert("Item approved");
+          }
         } else {
-          alert("Item rejected");
+          this.rejectedItems.push(item);
+          if (Persimmon && Persimmon.notifications) {
+            Persimmon.notifications.info("Item rejected and saved to database");
+          } else {
+            alert("Item rejected");
+          }
         }
-      }
 
-      const element = document.getElementById(`review-${itemId}`);
-      if (element) {
-        element.classList.add(decision === "approve" ? "approved" : "rejected");
+        const element = document.getElementById(`review-${itemId}`);
+        if (element) {
+          element.classList.add(
+            decision === "approve" ? "approved" : "rejected"
+          );
 
-        setTimeout(() => {
-          this.renderReviewItems();
-          this.updateReviewStats();
-        }, 1000);
+          setTimeout(() => {
+            this.renderReviewItems();
+            this.updateReviewStats();
+          }, 1000);
+        }
+      } catch (error) {
+        console.error("Error updating item in database:", error);
+        if (Persimmon && Persimmon.notifications) {
+          Persimmon.notifications.error(
+            `Failed to ${decision} item: ${error.message}`
+          );
+        } else {
+          alert(`Error: Failed to ${decision} item`);
+        }
       }
     } else {
       console.error("Item not found:", itemId);
@@ -949,18 +1111,20 @@ const PersimmonProcessor = {
     try {
       let publishedCount = 0;
       let errorCount = 0;
+      const successfullyPublishedItems = []; // Track which items were successfully published
 
-      // Save each approved item to the database
+      // Process each approved item using the new database workflow
       for (const item of this.approvedItems) {
         try {
-          // Update the intelligence item in database to mark as approved
-          if (item.originalData?.intelligence_item_id) {
-            await PersimmonDB.approveIntelligenceItem(
-              item.originalData.intelligence_item_id
+          // Use the new publishReviewItem function which handles both RSS and intelligence items
+          if (item.originalData?.queue_item_id) {
+            await PersimmonDB.publishReviewItem(
+              item.originalData.queue_item_id
             );
             publishedCount++;
+            successfullyPublishedItems.push(item); // Track successful publication
           } else {
-            // Create new intelligence item if it doesn't exist in database
+            // Fallback: Create new intelligence item if no queue item ID
             const newItem = {
               title: item.title,
               content: item.content || item.summary,
@@ -981,15 +1145,20 @@ const PersimmonProcessor = {
 
             await PersimmonDB.createIntelligenceItem(newItem);
             publishedCount++;
+            successfullyPublishedItems.push(item); // Track successful publication
           }
         } catch (error) {
-          console.error("Error publishing item:", error);
+          console.error("Error publishing item:", item.title, error);
           errorCount++;
+          // Don't add to successfullyPublishedItems - keep in approved list for retry
         }
       }
 
-      // Clear approved items
-      this.approvedItems = [];
+      // SELECTIVE REMOVAL: Only remove successfully published items from approved list
+      this.approvedItems = this.approvedItems.filter(
+        (item) => !successfullyPublishedItems.includes(item)
+      );
+
       this.updateReviewStats();
 
       if (publishedCount > 0) {
@@ -1008,7 +1177,7 @@ const PersimmonProcessor = {
 
       if (errorCount > 0) {
         Persimmon.notifications.warning(
-          `${errorCount} items failed to publish`
+          `${errorCount} items failed to publish and remain in approved list for retry`
         );
       }
     } catch (error) {
@@ -1339,14 +1508,19 @@ const PersimmonProcessor = {
     this.reviewItems.push(reviewItem);
 
     try {
-      // Update status to completed
-      await PersimmonDB.updateProcessingQueueStatus(queueItem.id, "completed");
+      // Move to review status instead of completed
+      await PersimmonDB.moveToReview(queueItem.id, {
+        category: reviewItem.category,
+        priority: reviewItem.priority,
+        confidence: reviewItem.confidence,
+        reasoning: reviewItem.reasoning,
+      });
       console.log(
-        `Successfully processed queue item ${queueItem.id} and updated status to completed`
+        `Successfully processed queue item ${queueItem.id} and moved to review status`
       );
     } catch (error) {
       console.warn(
-        `Could not update queue item ${queueItem.id} to completed status:`,
+        `Could not update queue item ${queueItem.id} to review status:`,
         error
       );
       // Continue even if status update fails - the item was still processed
