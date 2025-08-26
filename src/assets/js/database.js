@@ -1450,11 +1450,29 @@ const PersimmonDB = {
         throw new Error("User not authenticated");
       }
 
+      // Only update columns that exist in the processing_queue table
       const updates = {
-        analyst_comment: analystComment,
         approved_by: user.id,
         approved_at: new Date().toISOString(),
       };
+
+      // Add analyst comment to review_data if provided
+      if (analystComment) {
+        // Get existing review_data first
+        const { data: existingItem, error: fetchError } = await this.supabase
+          .from("processing_queue")
+          .select("review_data")
+          .eq("id", queueItemId)
+          .single();
+
+        if (!fetchError && existingItem) {
+          const existingReviewData = existingItem.review_data || {};
+          updates.review_data = {
+            ...existingReviewData,
+            analyst_comment: analystComment,
+          };
+        }
+      }
 
       const { data, error } = await this.supabase
         .from("processing_queue")
