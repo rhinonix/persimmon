@@ -1,8 +1,0 @@
-[build]
-publish = "public"
-
-[context.production]
-command = "echo 'Static site - no build required'"
-
-# Simple approach - no build-time injection needed
-# Auth0 client credentials are public and can be set directly in the app
