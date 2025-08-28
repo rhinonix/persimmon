@@ -648,8 +648,8 @@ const PersimmonProcessor = {
     if (!container) return;
 
     try {
-      // Load only pending processing queue items from database
-      const queueItems = await PersimmonDB.getProcessingQueue("pending");
+      // Load processing queue items from database (pending and processing status)
+      const queueItems = await PersimmonDB.getProcessingQueue("processing");
 
       if (queueItems.length === 0) {
         container.innerHTML =
