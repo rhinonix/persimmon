@@ -825,17 +825,62 @@ const PersimmonProcessor = {
 
     if (item) {
       try {
-        // Update database first
+        // Update database first - this fixes the original error
         if (decision === "approve") {
-          await PersimmonDB.approveReviewItem(
-            item.originalData?.queue_item_id || itemId,
-            `Approved by analyst`
-          );
+          // Handle both direct intelligence items and queue-based items
+          if (item.originalData?.intelligence_item_id) {
+            // Direct intelligence item - update the intelligence_items table
+            await PersimmonDB.approveIntelligenceItem(
+              item.originalData.intelligence_item_id
+            );
+            await PersimmonDB.updateIntelligenceItem(
+              item.originalData.intelligence_item_id,
+              {
+                status: "approved",
+              }
+            );
+          } else if (item.originalData?.queue_item_id) {
+            // Queue-based item - use the queue approval workflow
+            await PersimmonDB.approveReviewItem(
+              item.originalData.queue_item_id,
+              `Approved by analyst`
+            );
+          } else {
+            // Fallback - create new intelligence item
+            const newItem = {
+              title: item.title,
+              content: item.content || item.summary,
+              summary: item.summary,
+              quote: item.quote || "",
+              category: item.category,
+              priority: item.priority,
+              source_name: item.source,
+              source_type: "manual",
+              ai_processed: true,
+              ai_reasoning: item.reasoning,
+              confidence: item.confidence,
+              processing_status: "completed",
+              analyst_comment: `Approved by analyst with ${item.confidence}% confidence`,
+              approved: true,
+              status: "approved",
+            };
+            await PersimmonDB.createIntelligenceItem(newItem);
+          }
         } else {
-          await PersimmonDB.rejectReviewItem(
-            item.originalData?.queue_item_id || itemId,
-            `Rejected by analyst`
-          );
+          // Handle rejection
+          if (item.originalData?.intelligence_item_id) {
+            await PersimmonDB.updateIntelligenceItem(
+              item.originalData.intelligence_item_id,
+              {
+                status: "rejected",
+              }
+            );
+          } else if (item.originalData?.queue_item_id) {
+            await PersimmonDB.rejectReviewItem(
+              item.originalData.queue_item_id,
+              `Rejected by analyst`
+            );
+          }
         }
 
         // Update local state
@@ -873,7 +918,7 @@ const PersimmonProcessor = {
           }, 1000);
         }
       } catch (error) {
-        console.error("Error updating item in database:", error);
+        console.error("Error approving review item:", error);
         if (Persimmon && Persimmon.notifications) {
           Persimmon.notifications.error(
             `Failed to ${decision} item: ${error.message}`

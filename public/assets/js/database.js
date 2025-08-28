@@ -1385,6 +1385,302 @@ const PersimmonDB = {
   },
 
   // ============================================================================
+  // REVIEW WORKFLOW FUNCTIONS
+  // ============================================================================
+
+  // Get items ready for review (completed processing, not yet reviewed)
+  async getReviewItems() {
+    try {
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .select(
+          `
+          *,
+          intelligence_items(title, content, source_name, category, priority, confidence, summary, quote, ai_reasoning),
+          rss_feed_items(
+            id,
+            title,
+            description,
+            content,
+            link,
+            author,
+            pub_date,
+            categories,
+            rss_feeds(name, url)
+          )
+        `
+        )
+        .eq("status", "review")
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching review items:", error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getReviewItems:", error);
+      throw error;
+    }
+  },
+
+  // Move completed items to review status
+  async moveToReview(queueItemId, reviewData = {}) {
+    try {
+      const updates = {
+        status: "review",
+        review_data: reviewData, // Store AI analysis results
+        moved_to_review_at: new Date().toISOString(),
+      };
+
+      return await this.updateProcessingQueueStatus(queueItemId, "review");
+    } catch (error) {
+      console.error("Database error in moveToReview:", error);
+      throw error;
+    }
+  },
+
+  // Mark item as approved (but not yet published)
+  async approveReviewItem(queueItemId, analystComment = null) {
+    try {
+      const user = await PersimmonAuth.getCurrentUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // Only update columns that exist in the processing_queue table
+      const updates = {
+        approved_by: user.id,
+        approved_at: new Date().toISOString(),
+      };
+
+      // Add analyst comment to review_data if provided
+      if (analystComment) {
+        // Get existing review_data first
+        const { data: existingItem, error: fetchError } = await this.supabase
+          .from("processing_queue")
+          .select("review_data")
+          .eq("id", queueItemId)
+          .single();
+
+        if (!fetchError && existingItem) {
+          const existingReviewData = existingItem.review_data || {};
+          updates.review_data = {
+            ...existingReviewData,
+            analyst_comment: analystComment,
+          };
+        }
+      }
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .update(updates)
+        .eq("id", queueItemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error approving review item:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in approveReviewItem:", error);
+      throw error;
+    }
+  },
+
+  // Mark item as rejected
+  async rejectReviewItem(queueItemId, reason = null) {
+    try {
+      const user = await PersimmonAuth.getCurrentUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      const updates = {
+        status: "rejected",
+        rejection_reason: reason,
+        rejected_by: user.id,
+        rejected_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .update(updates)
+        .eq("id", queueItemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error rejecting review item:", error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Database error in rejectReviewItem:", error);
+      throw error;
+    }
+  },
+
+  // Mark item as published and create/update intelligence item
+  async publishReviewItem(queueItemId) {
+    try {
+      const user = await PersimmonAuth.getCurrentUser();
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      // First get the queue item with all its data
+      const { data: queueItem, error: fetchError } = await this.supabase
+        .from("processing_queue")
+        .select(
+          `
+          *,
+          intelligence_items(*),
+          rss_feed_items(
+            *,
+            rss_feeds(name, url)
+          )
+        `
+        )
+        .eq("id", queueItemId)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching queue item for publishing:", fetchError);
+        throw fetchError;
+      }
+
+      let intelligenceItemId;
+
+      // Create or update intelligence item
+      if (queueItem.intelligence_items) {
+        // Update existing intelligence item
+        const updates = {
+          approved: true,
+          approved_by: user.id,
+          approved_at: new Date().toISOString(),
+        };
+
+        await this.updateIntelligenceItem(
+          queueItem.intelligence_items.id,
+          updates
+        );
+        intelligenceItemId = queueItem.intelligence_items.id;
+      } else if (queueItem.rss_feed_items) {
+        // Create new intelligence item from RSS data
+        const rssItem = queueItem.rss_feed_items;
+        const feedName = rssItem.rss_feeds?.name || "RSS Feed";
+
+        const newItem = {
+          title: rssItem.title || "Untitled RSS Item",
+          content:
+            rssItem.content || rssItem.description || "Content not available",
+          summary:
+            rssItem.description ||
+            rssItem.content?.substring(0, 200) + "..." ||
+            "No summary available",
+          quote: rssItem.description?.substring(0, 150) + "..." || "",
+          category: queueItem.review_data?.category || "ukraine",
+          priority: queueItem.review_data?.priority || "medium",
+          confidence: queueItem.review_data?.confidence || 85,
+          source_name: feedName,
+          source_type: "rss",
+          original_url: rssItem.link || "",
+          author: rssItem.author || null,
+          ai_processed: true,
+          ai_reasoning:
+            queueItem.review_data?.reasoning ||
+            `Processed from RSS feed: ${feedName}`,
+          processing_status: "completed",
+          approved: true,
+          approved_by: user.id,
+          approved_at: new Date().toISOString(),
+          analyst_comment:
+            queueItem.analyst_comment || `Published from review queue`,
+          original_data: {
+            queue_item_id: queueItemId,
+            rss_feed_item_id: rssItem.id,
+            rss_feed_name: feedName,
+          },
+        };
+
+        const createdItem = await this.createIntelligenceItem(newItem);
+        intelligenceItemId = createdItem.id;
+      }
+
+      // Update queue item status to published
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .update({
+          status: "published",
+          published_by: user.id,
+          published_at: new Date().toISOString(),
+          intelligence_item_id: intelligenceItemId,
+        })
+        .eq("id", queueItemId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error marking item as published:", error);
+        throw error;
+      }
+
+      // Clear dashboard stats cache since data changed
+      this.clearCache("dashboardStats");
+
+      return data;
+    } catch (error) {
+      console.error("Database error in publishReviewItem:", error);
+      throw error;
+    }
+  },
+
+  // Get approved items that haven't been published yet
+  async getApprovedItems() {
+    try {
+      const { data, error } = await this.supabase
+        .from("processing_queue")
+        .select(
+          `
+          *,
+          intelligence_items(title, content, source_name, category, priority, confidence, summary, quote),
+          rss_feed_items(
+            id,
+            title,
+            description,
+            content,
+            link,
+            author,
+            pub_date,
+            rss_feeds(name, url)
+          )
+        `
+        )
+        .eq("status", "review")
+        .not("approved_at", "is", null)
+        .is("published_at", null)
+        .order("approved_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching approved items:", error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Database error in getApprovedItems:", error);
+      throw error;
+    }
+  },
+
+  // ============================================================================
   // REAL-TIME SUBSCRIPTIONS
   // ============================================================================
 
